@@ -3,11 +3,11 @@ from dataclasses import dataclass
 
 @dataclass(slots=True)
 class ParametryWindy:
-    liczba_pieter: int = 10
+    liczba_pieter: int = 15
     pietro_startowe: int = 0
     ticki_przejazdu_na_pietro: int = 4
     ticki_postoju: int = 4
-    maks_pojemnosc: int = 8
+    maks_pojemnosc: int = 6
     poczatkowe_obciazenie: int = 0
 
     def __post_init__(self) -> None:

@@ -1,7 +1,9 @@
 from __future__ import annotations
-
+from typing import TYPE_CHECKING
 from Kierunki_i_typy import Kierunek
 
+if TYPE_CHECKING:
+    from Silnik_windy import SilnikWindy
 
 class StrategiaZbiorcza:
     """
@@ -28,6 +30,7 @@ class StrategiaZbiorcza:
             if cos_nizej:
                 return Kierunek.DOL
             return Kierunek.BEZRUCH
+        
 
         if winda.kierunek == Kierunek.DOL:
             if cos_nizej:
