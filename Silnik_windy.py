@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Dict, List, Optional, Set, Tuple
 
 from Konfiguracja_windy import ParametryWindy
-from Kierunki_i_typy import Kierunek, TypZgloszenia
+from Kierunki_i_typy import Kierunek, TypZgloszenia, ZrodloZgloszenia
 from Strategia_windy import StrategiaZbiorcza
 from Zgloszenia_windy import ZgloszenieWindy
 
@@ -55,6 +55,35 @@ class SilnikWindy:
             self._rusz_jezeli_mozna()
 
         return True
+    
+    def dodaj_wezwanie_z_pietra_teraz(
+        self,
+        pietro: int,
+        kierunek: Kierunek,
+        zrodlo: ZrodloZgloszenia,
+    ) -> bool:
+        zgloszenie = ZgloszenieWindy(
+            typ_zgloszenia=TypZgloszenia.WEZWANIE_Z_PIETRA,
+            zrodlo=zrodlo,
+            tick_utworzenia=self.aktualny_tick,
+            pietro=pietro,
+            kierunek=kierunek,
+        )
+        return self.dodaj_zgloszenie(zgloszenie)
+
+    def dodaj_wybor_z_kabiny_teraz(
+        self,
+        pietro_docelowe: int,
+        zrodlo: ZrodloZgloszenia,
+    ) -> bool:
+        zgloszenie = ZgloszenieWindy(
+            typ_zgloszenia=TypZgloszenia.WYBOR_Z_KABINY,
+            zrodlo=zrodlo,
+            tick_utworzenia=self.aktualny_tick,
+            pietro=self.aktualne_pietro,
+            pietro_docelowe=pietro_docelowe,
+        )
+        return self.dodaj_zgloszenie(zgloszenie)
 
     def krok(self) -> None:
         self.aktualny_tick += 1
