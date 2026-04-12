@@ -29,20 +29,23 @@ class OkraglyPrzycisk(tk.Canvas):
                                  self.itemconfig(self.tekst, fill="#333333")])
         self.komenda()
 
+
 class SymulatorWindyGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Symulator Inteligentnej Windy (Modern UI)")
+        self.root.title("Symulator Inteligentnej Windy")
         self.kolor_tla = "#f0f2f5" 
         self.root.configure(bg=self.kolor_tla)
         
         # --- 1. Inicjalizacja Backendu ---
-        self.parametry = ParametryWindy(liczba_pieter=10)
+        self.parametry = ParametryWindy(liczba_pieter=10, pietro_startowe=0, ticki_przejazdu_na_pietro=5, ticki_postoju=5,
+                                        maks_pojemnosc=8, poczatkowe_obciazenie=0,)
+
         self.winda = SilnikWindy(parametry=self.parametry)
         self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600)
         
         self.symulacja_dziala = False
-        self.interwal_ticku_ms = 400
+        self.interwal_ticku_ms = 300
         self.after_id = None 
         
         # --- 2. Layout ---
@@ -75,8 +78,20 @@ class SymulatorWindyGUI:
             f = tk.Frame(self.panel_zewnatrz, bg="white")
             f.pack(pady=4)
             tk.Label(f, text=f"P{i:02d}", width=3, bg="white", font=("Segoe UI", 10, "bold")).pack(side=tk.LEFT)
-            tk.Button(f, text="▲", command=lambda p=i: self.wezwij(p, Kierunek.GORA), relief=tk.FLAT, bg="#e8f0fe", font=("Arial", 10)).pack(side=tk.LEFT, padx=2)
-            tk.Button(f, text="▼", command=lambda p=i: self.wezwij(p, Kierunek.DOL), relief=tk.FLAT, bg="#fce8e6", font=("Arial", 10)).pack(side=tk.LEFT, padx=2)
+            
+            # Przycisk w górę
+            btn_up = tk.Button(f, text="▲", command=lambda p=i: self.wezwij(p, Kierunek.GORA), relief=tk.FLAT, bg="#e8f0fe", font=("Arial", 10))
+            btn_up.pack(side=tk.LEFT, padx=2)
+            # Zablokowanie przycisku GÓRA na najwyższym piętrze
+            if i == self.parametry.liczba_pieter - 1:
+                btn_up.config(state=tk.DISABLED, bg="#f8f9fa", fg="#cccccc")
+            
+            # Przycisk w dół
+            btn_down = tk.Button(f, text="▼", command=lambda p=i: self.wezwij(p, Kierunek.DOL), relief=tk.FLAT, bg="#fce8e6", font=("Arial", 10))
+            btn_down.pack(side=tk.LEFT, padx=2)
+            # Zablokowanie przycisku DÓŁ na najniższym piętrze
+            if i == 0:
+                btn_down.config(state=tk.DISABLED, bg="#f8f9fa", fg="#cccccc")
 
     def _buduj_panel_kabina_lcd(self):
         f_ekran = tk.Frame(self.panel_kabina, bg="#202124", padx=10, pady=5)
@@ -100,7 +115,6 @@ class SymulatorWindyGUI:
         
         # Przyciski sterowania
         tk.Button(f_ctrl, text="Krok +1", command=self.krok, bg="#e8eaed", relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
-        # NOWY PRZYCISK: Skok o całe piętro
         tk.Button(f_ctrl, text="Piętro +1", command=self.skok_pietro, bg="#d2e3fc", relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
         
         self.btn_play = tk.Button(f_ctrl, text="Start", command=self.przelacz, bg="#81c995", fg="white", relief=tk.FLAT, width=8, font=("Segoe UI", 9, "bold"))
@@ -114,7 +128,6 @@ class SymulatorWindyGUI:
 
     # --- LOGIKA ---
     def skok_pietro(self):
-        """Wykonuje tyle kroków, ile zajmuje przejazd jednego piętra."""
         for _ in range(self.parametry.ticki_przejazdu_na_pietro):
             self.winda.krok()
         self.odswiez_widok()
