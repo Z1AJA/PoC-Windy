@@ -15,6 +15,7 @@
 To jest rdzeń jednej windy działającej na `N` piętrach.
 
 Silnik:
+
 - przyjmuje zgłoszenia od człowieka i systemu,
 - rozróżnia wezwania z piętra i wybory piętra z kabiny,
 - działa w tickach,
@@ -23,6 +24,7 @@ Silnik:
 - ma uproszczoną, czytelną strategię jazdy.
 
 Nie ma tu jeszcze:
+
 - wielu wind,
 - ML,
 - pełnej logiki drzwi,
@@ -32,27 +34,35 @@ Nie ma tu jeszcze:
 ## Enumy
 
 ### `Kierunek`
+
 Opisuje kierunek ruchu windy.
+
 - `DOL` — ruch w dół
 - `BEZRUCH` — brak aktywnego ruchu
 - `GORA` — ruch w górę
 
 ### `ZrodloZgloszenia`
+
 Opisuje źródło zgłoszenia.
+
 - `CZLOWIEK` — zgłoszenie od użytkownika
 - `SYSTEM` — zgłoszenie od systemu
 
 ### `TypZgloszenia`
+
 Opisuje typ zgłoszenia.
+
 - `WEZWANIE_Z_PIETRA` — ktoś woła windę z piętra i wskazuje kierunek
 - `WYBOR_Z_KABINY` — ktoś będąc w windzie wybiera piętro docelowe
 
 To rozróżnienie jest ważne i powinno zostać.
 
 ## `ParametryWindy`
+
 Klasa przechowująca parametry fizyczne.
 
 ### Pola
+
 - `liczba_pieter` — ile pięter ma budynek
 - `pietro_startowe` — od którego piętra startuje winda
 - `ticki_przejazdu_na_pietro` — ile ticków trwa przejazd o jedno piętro
@@ -61,9 +71,11 @@ Klasa przechowująca parametry fizyczne.
 - `poczatkowe_obciazenie` — startowa liczba osób
 
 ## `ZgloszenieWindy`
+
 Opisuje pojedyncze zgłoszenie.
 
-### Pola
+### Pola zgloszen
+
 - `typ_zgloszenia` — `WEZWANIE_Z_PIETRA` albo `WYBOR_Z_KABINY`
 - `zrodlo` — `CZLOWIEK` albo `SYSTEM`
 - `tick_utworzenia` — kiedy powstało zgłoszenie
@@ -72,16 +84,19 @@ Opisuje pojedyncze zgłoszenie.
 - `pietro_docelowe` — tylko dla wyboru z kabiny
 - `id_zgloszenia` — unikalny numer zgłoszenia
 
-### `klucz_deduplicacji`
+### `klucz_deduplicacji`s
+
 Służy do tego, żeby identyczne aktywne zgłoszenia nie tworzyły wielu osobnych przystanków.
 
 - dla wezwania z piętra: `("WEZWANIE", pietro, kierunek)`
 - dla wyboru z kabiny: `("KABINA", pietro_docelowe)`
 
 ## `StrategiaZbiorcza`
+
 To podstawowa strategia jazdy.
 
 ### Jak działa
+
 - jeśli winda jedzie w górę, dalej jedzie w górę tak długo, jak wyżej są oczekujące zgłoszenia,
 - jeśli winda jedzie w dół, dalej jedzie w dół tak długo, jak niżej są oczekujące zgłoszenia,
 - jeśli stoi, wybiera kierunek do najbliższego oczekującego piętra,
@@ -92,9 +107,11 @@ To podstawowa strategia jazdy.
 To jest prosta baza na PoC.
 
 ## `SilnikWindy`
+
 To główna klasa projektu.
 
 ### Najważniejsze pola
+
 - `aktualny_tick` — aktualny czas symulacji
 - `aktualne_pietro` — bieżące piętro
 - `kierunek` — aktualny kierunek
@@ -111,29 +128,37 @@ To główna klasa projektu.
 ### Najważniejsze metody
 
 #### `dodaj_zgloszenie(zgloszenie)`
+
 Dodaje zgłoszenie do systemu.
 Zwraca:
+
 - `True` — jeśli doszło nowe aktywne zgłoszenie,
 - `False` — jeśli zgłoszenie było duplikatem aktywnego przystanku.
 
 #### `krok()`
+
 Wykonuje jeden tick symulacji.
 To główna metoda silnika.
 
 #### `snapshot()`
+
 Zwraca stan windy jako słownik.
 To najprostsze API do komunikacji z GUI.
 
 #### `liczba_aktywnych_zgloszen()`
+
 Zwraca liczbę aktywnych, nieobsłużonych zgłoszeń.
 
 #### `ma_oczekujace_wyzej(pietro)`
+
 Sprawdza, czy wyżej są oczekujące zgłoszenia.
 
 #### `ma_oczekujace_nizej(pietro)`
+
 Sprawdza, czy niżej są oczekujące zgłoszenia.
 
 #### `najblizsze_oczekujace_pietro()`
+
 Zwraca najbliższe piętro z oczekującym zgłoszeniem.
 
 ## Uproszczona logika jazdy
@@ -148,6 +173,7 @@ Zwraca najbliższe piętro z oczekującym zgłoszeniem.
 ## Dlaczego ten model ma sens
 
 Bo jest:
+
 - prosty,
 - czytelny,
 - łatwy do testowania,

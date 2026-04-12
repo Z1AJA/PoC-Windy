@@ -5,6 +5,7 @@
 Ten dokument ma dać Ci wszystko, czego potrzebujesz do wykonania warstwy GUI w naszym PoC projektu inteligentnej windy. Ma nie tylko powiedzieć „co kliknąć”, ale przede wszystkim wyjaśnić, jak myśleć o integracji z silnikiem, jakie dane już mamy, czego nie wolno psuć, gdzie masz swobodę projektową i jak sensownie użyć AI, żeby nie generowała przypadkowego kodu.
 
 Ten dokument jest pisany pod osobę, która będzie robiła:
+
 - przyciski wywołania windy z pięter,
 - przyciski wewnątrz kabiny,
 - wizualizację ruchu windy,
@@ -12,6 +13,7 @@ Ten dokument jest pisany pod osobę, która będzie robiła:
 - integrację z istniejącym backendem.
 
 To nie jest jeszcze docelowy produkt. To jest PoC. Ale PoC ma być zrobiony tak, żeby:
+
 - dało się go pokazać,
 - dało się go rozwijać,
 - dało się na nim testować kolejne wersje projektu,
@@ -52,6 +54,7 @@ Masz do dyspozycji gotowe pliki backendowe:
 Najważniejszy dla Ciebie jest `Silnik_windy.py`, bo to jest centralny obiekt, z którym GUI ma rozmawiać.
 
 Backend:
+
 - trzyma stan windy,
 - przyjmuje zgłoszenia,
 - aktualizuje się tick po ticku,
@@ -65,7 +68,8 @@ GUI nie ma wymyślać własnej logiki windy. GUI ma być warstwą wejścia i pre
 
 To jest bardzo ważne.
 
-### Backend odpowiada za:
+### Backend odpowiada za
+
 - stan windy,
 - logikę jazdy,
 - kolejność obsługi zgłoszeń,
@@ -75,14 +79,16 @@ To jest bardzo ważne.
 - deduplikację zgłoszeń,
 - strategię sterowania.
 
-### GUI odpowiada za:
+### GUI odpowiada za
+
 - wyświetlenie stanu,
 - przyjmowanie kliknięć użytkownika,
 - przekazywanie komend do backendu,
 - odświeżanie obrazu po zmianie stanu,
 - opcjonalnie sterowanie szybkością symulacji.
 
-### Czego GUI nie powinno robić:
+### Czego GUI nie powinno robić
+
 - przechowywać „drugiej wersji prawdy” o stanie windy,
 - samodzielnie decydować, gdzie winda pojedzie,
 - zmieniać bezpośrednio pól obiektu `SilnikWindy`,
@@ -90,6 +96,7 @@ To jest bardzo ważne.
 - ręcznie budować stanu, który powinien pochodzić z `snapshot()`.
 
 Najprościej:
+
 - backend = logika i prawda,
 - GUI = widok i wejście.
 
@@ -138,6 +145,7 @@ winda.krok()
 ```
 
 Co to oznacza praktycznie:
+
 - aktualny czas symulacji przesuwa się o 1 tick,
 - winda może przejechać część drogi lub całe piętro,
 - winda może zakończyć postój,
@@ -201,6 +209,7 @@ winda.dodaj_wezwanie_z_pietra_teraz(
 To ma być podstawowa metoda pod przyciski na korytarzach.
 
 Czyli:
+
 - użytkownik klika „góra” na piętrze 3,
 - GUI wywołuje tę metodę,
 - backend sam nadaje tick utworzenia i zajmuje się resztą.
@@ -229,27 +238,35 @@ To ma być pod przyciski wewnętrzne kabiny.
 W pliku `Kierunki_i_typy.py` są enumy. GUI musi znać ich sens.
 
 ### `Kierunek`
+
 Wartości:
+
 - `Kierunek.GORA`
 - `Kierunek.DOL`
 - `Kierunek.BEZRUCH`
 
 GUI używa tego:
+
 - przy wysyłaniu wezwania z piętra,
 - przy wyświetlaniu kierunku windy.
 
 ### `ZrodloZgloszenia`
+
 Wartości:
+
 - `ZrodloZgloszenia.CZLOWIEK`
 - `ZrodloZgloszenia.SYSTEM`
 
 W GUI zazwyczaj używasz:
+
 - `CZLOWIEK`
 
 `SYSTEM` może się przydać np. do automatycznego generowania testowych zgłoszeń.
 
 ### `TypZgloszenia`
+
 Tego GUI zwykle nie musi przekazywać ręcznie, jeśli używa wygodnych metod `dodaj_*_teraz`, ale warto rozumieć różnicę:
+
 - `WEZWANIE_Z_PIETRA`
 - `WYBOR_Z_KABINY`
 
@@ -260,18 +277,22 @@ Tego GUI zwykle nie musi przekazywać ręcznie, jeśli używa wygodnych metod `d
 Minimalna wersja, która już ma sens, powinna mieć trzy obszary.
 
 ### 8.1. Panel budynku
+
 Powinien pokazywać:
+
 - wszystkie piętra,
 - pozycję windy,
 - ewentualnie numer aktualnego piętra,
 - ewentualnie kierunek.
 
 Najprostsza wersja:
+
 - pionowa lista pięter,
 - prostokąt lub kolorowy blok jako kabina,
 - podświetlenie piętra, na którym obecnie jest winda.
 
 Lepsza wersja:
+
 - animacja przejazdu między piętrami,
 - osobny znacznik kierunku,
 - wizualne zaznaczenie oczekujących zgłoszeń na piętrach.
@@ -279,15 +300,19 @@ Lepsza wersja:
 ---
 
 ### 8.2. Panel przycisków zewnętrznych
+
 Dla każdego piętra:
+
 - przycisk `GÓRA`
 - przycisk `DÓŁ`
 
 Ale praktycznie:
+
 - na najwyższym piętrze nie ma sensu pokazywać `GÓRA`,
 - na najniższym nie ma sensu pokazywać `DÓŁ`.
 
 Kliknięcie ma wywoływać:
+
 ```python
 winda.dodaj_wezwanie_z_pietra_teraz(...)
 ```
@@ -295,14 +320,17 @@ winda.dodaj_wezwanie_z_pietra_teraz(...)
 ---
 
 ### 8.3. Panel przycisków kabiny
+
 Lista pięter dostępnych w kabinie.
 
 Kliknięcie ma wywoływać:
+
 ```python
 winda.dodaj_wybor_z_kabiny_teraz(...)
 ```
 
 Dobrze, jeśli GUI:
+
 - nie blokuje przycisków już klikniętych na stałe,
 - ale może je wizualnie zaznaczać jako oczekujące.
 
@@ -332,13 +360,16 @@ Bardzo ważna rzecz: backend operuje na poziomie pięter i ticków, a nie płynn
 To oznacza, że GUI ma dwa rozsądne warianty.
 
 ### Wariant A — prosty
+
 Pokazujesz windę tylko na aktualnym piętrze.
 Jeśli backend mówi `aktualne_pietro = 4`, rysujesz ją na wysokości piętra 4.
 
 To jest najprostsze i wystarczy do bardzo prostego PoC.
 
 ### Wariant B — lepszy
+
 Używasz:
+
 - `aktualne_pietro`
 - `ticki_do_nastepnego_pietra`
 - `ticki_przejazdu_na_pietro`
@@ -346,6 +377,7 @@ Używasz:
 i na tej podstawie interpolujesz pozycję kabiny między piętrami.
 
 To znaczy:
+
 - jeśli winda jedzie z 3 na 4,
 - i zostało 1 z 3 ticków,
 - możesz narysować ją już bliżej piętra 4 niż 3.
@@ -378,15 +410,18 @@ def aktualizacja():
 ```
 
 To może być odpalane:
+
 - co 100 ms,
 - co 200 ms,
 - lub innym interwałem, zależnie od narzędzia GUI.
 
 Uwaga: 1 tick symulacji nie musi oznaczać 1 klatki ekranu. Możesz mieć:
+
 - 1 tick = 1 sekunda logiki,
 - ale renderowanie częściej lub rzadziej.
 
 Na PoC można przyjąć prosty model:
+
 - co jedno odświeżenie GUI robisz jeden `krok()`.
 
 ---
@@ -396,6 +431,7 @@ Na PoC można przyjąć prosty model:
 Jeśli plik `Czas_symulacji.py` jest już dodany, to jego zadaniem nie jest sterowanie windą, tylko tłumaczenie ticka na sensowny czas.
 
 To znaczy:
+
 - backend zna `aktualny_tick`,
 - warstwa czasu tłumaczy to na:
   - dzień tygodnia,
@@ -415,6 +451,7 @@ opis_czasu = czas.tick_na_czas(winda.aktualny_tick)
 ```
 
 I wtedy GUI może pokazać np.:
+
 - `poniedziałek`
 - `07:30:25`
 
@@ -428,7 +465,8 @@ Na ten moment to warstwa pomocnicza, ale bardzo dobra do prezentacji.
 
 To sekcja krytyczna.
 
-### Nie rób tego:
+### Nie rób tego
+
 - nie zmieniaj bezpośrednio `winda.aktualne_pietro`,
 - nie zmieniaj bezpośrednio `winda.kierunek`,
 - nie wrzucaj nic ręcznie do `wezwania_gora`, `wezwania_dol`, `wybory_z_kabiny`,
@@ -442,14 +480,16 @@ GUI powinno być cienką warstwą nad backendem.
 
 ## 14. Co jest już ustalone, a co zostawiamy otwarte
 
-### Ustalone:
+### Ustalone
+
 - jedna winda,
 - backend steruje ruchem,
 - GUI korzysta z `snapshot()`,
 - zgłoszenia dodajemy przez wygodne metody `dodaj_*_teraz`,
 - tick jest podstawową jednostką czasu symulacji.
 
-### Otwarte:
+### Otwarte
+
 - jaka technologia GUI zostanie użyta,
 - jak dokładnie będzie wyglądać wizualizacja,
 - czy ma być interpolacja ruchu,
@@ -467,7 +507,9 @@ Czyli: logika jest wspólna, ale forma GUI jest do decyzji.
 Polecam robić to etapami.
 
 ### Etap 1 — integracja podstawowa
+
 Cel:
+
 - uruchomić okno,
 - stworzyć obiekt `SilnikWindy`,
 - dodać timer,
@@ -477,30 +519,40 @@ Cel:
 Jeśli to działa, masz już szkielet.
 
 ### Etap 2 — wizualizacja budynku
+
 Cel:
+
 - narysować listę pięter,
 - narysować kabinę,
 - pokazać, na którym piętrze aktualnie jest winda,
 - pokazać kierunek.
 
 ### Etap 3 — przyciski zewnętrzne
+
 Cel:
+
 - podpiąć przyciski „góra/dół” do metod backendu,
 - zobaczyć, że kliknięcie wpływa na trasę windy.
 
 ### Etap 4 — przyciski kabiny
+
 Cel:
+
 - dodać wybór pięter z wnętrza windy.
 
 ### Etap 5 — informacje dodatkowe
+
 Cel:
+
 - licznik ticków,
 - czas symulacji,
 - oczekujące zgłoszenia,
 - stan jazdy.
 
 ### Etap 6 — dopracowanie
+
 Cel:
+
 - estetyka,
 - czytelność,
 - ewentualna animacja,
@@ -515,31 +567,40 @@ To podejście minimalizuje chaos.
 To jest ważne, bo nie chcemy duplikować roboty.
 
 ### `Silnik_windy.py`
+
 To Twój backend. Nie przepisywać. Nie zastępować. Używać.
 
 ### `Konfiguracja_windy.py`
+
 To źródło parametrów startowych windy.
 Możesz dzięki temu łatwo testować różne ustawienia:
+
 - liczbę pięter,
 - prędkość jazdy,
 - czas postoju.
 
 ### `Kierunki_i_typy.py`
+
 To wspólny język projektu. Używaj enumów stamtąd, nie twórz własnych stringów typu `"UP"` czy `"DOWN"`.
 
 ### `Zgloszenia_windy.py`
+
 To model danych zgłoszenia. GUI nie powinno zwykle tworzyć go ręcznie, ale warto rozumieć, co backend przyjmuje.
 
 ### `Strategia_windy.py`
+
 To logika jazdy. Nie przenosić jej do GUI. Ale warto wiedzieć, że istnieje, żeby rozumieć zachowanie windy.
 
 ### `Czas_symulacji.py`
+
 To warstwa pomocnicza do prezentacji czasu i późniejszej integracji z harmonogramami.
 
 ### `Przyklad_uzycia.py`
+
 To dobry punkt odniesienia, jak backend jest używany bez GUI. Można potraktować to jako najprostszy model integracji.
 
 ### `Opis_silnika_windy.md`
+
 To dokumentacja rdzenia. Warto mieć go pod ręką przy pracy.
 
 ---
@@ -622,6 +683,7 @@ Pokaż sensowną strukturę projektu i uzasadnij wybór.
 ```
 
 Do czego służy ten prompt:
+
 - żeby LLM nie próbował wymyślać nowego backendu,
 - żeby pomógł rozplanować kod GUI.
 
@@ -761,26 +823,31 @@ To warto dopisać, gdy model zaczyna „kombinować”.
 To też warto wiedzieć.
 
 ### Typowy błąd 1
+
 LLM zaczyna tworzyć własną klasę windy w GUI.
 
 To jest zły kierunek.
 
 ### Typowy błąd 2
+
 LLM próbuje zastąpić enumy stringami typu `"UP"` i `"DOWN"`.
 
 To jest zły kierunek. Mamy już enumy.
 
 ### Typowy błąd 3
+
 LLM robi własną logikę trasowania po stronie GUI.
 
 To jest zły kierunek.
 
 ### Typowy błąd 4
+
 LLM tworzy ciężką, przekombinowaną architekturę frontendową, która nie daje żadnej wartości przy PoC.
 
 To zwykle zły kierunek.
 
 ### Typowy błąd 5
+
 LLM ignoruje `snapshot()` i próbuje czytać pojedyncze pola lub je nadpisywać.
 
 To też zły kierunek.
@@ -794,6 +861,7 @@ Jeśli widzisz takie rzeczy, trzeba korygować prompt.
 Nie chcemy narzucać Ci na siłę jednego wyglądu czy jednej technologii.
 
 Masz swobodę w takich rzeczach:
+
 - wybór biblioteki GUI,
 - układ okna,
 - sposób rysowania windy,
@@ -803,6 +871,7 @@ Masz swobodę w takich rzeczach:
 - panel czasu / panel debug.
 
 Natomiast nie warto rozluźniać tych rzeczy:
+
 - backend pozostaje źródłem prawdy,
 - integracja ma opierać się o istniejące publiczne metody,
 - stan ma pochodzić ze `snapshot()`.
@@ -839,6 +908,7 @@ Jeśli chcesz działać rozsądnie, zrób najpierw tylko to:
 - tekst z numerem piętra i kierunkiem.
 
 Bez:
+
 - ładnych animacji,
 - rozbudowanych paneli,
 - historii zdarzeń,
@@ -869,12 +939,14 @@ To ma być warstwa obsługowa i wizualna dla istniejącego silnika.
 
 Jeśli chcesz myśleć o tym jak o kontrakcie integracyjnym, to jest on bardzo prosty.
 
-### GUI wysyła do backendu:
+### GUI wysyła do backendu
+
 - `dodaj_wezwanie_z_pietra_teraz(...)`
 - `dodaj_wybor_z_kabiny_teraz(...)`
 - `krok()`
 
-### Backend oddaje do GUI:
+### Backend oddaje do GUI
+
 - `snapshot()`
 
 To już wystarczy do działania PoC.
@@ -886,6 +958,7 @@ To już wystarczy do działania PoC.
 Rób to tak, żeby można było łatwo wymienić samo GUI bez ruszania backendu.
 
 Jeżeli za jakiś czas:
+
 - zmienimy bibliotekę,
 - dołożymy ML,
 - dołożymy generator ruchu,
