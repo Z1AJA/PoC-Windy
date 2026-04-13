@@ -29,23 +29,20 @@ class OkraglyPrzycisk(tk.Canvas):
                                  self.itemconfig(self.tekst, fill="#333333")])
         self.komenda()
 
-
 class SymulatorWindyGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Symulator Inteligentnej Windy")
+        self.root.title("Symulator Inteligentnej Windy (Modern UI)")
         self.kolor_tla = "#f0f2f5" 
         self.root.configure(bg=self.kolor_tla)
         
         # --- 1. Inicjalizacja Backendu ---
-        self.parametry = ParametryWindy(liczba_pieter=10, pietro_startowe=0, ticki_przejazdu_na_pietro=5, ticki_postoju=5,
-                                        maks_pojemnosc=8, poczatkowe_obciazenie=0,)
-
+        self.parametry = ParametryWindy(liczba_pieter=10)
         self.winda = SilnikWindy(parametry=self.parametry)
         self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600)
         
         self.symulacja_dziala = False
-        self.interwal_ticku_ms = 300
+        self.interwal_ticku_ms = 400
         self.after_id = None 
         
         # --- 2. Layout ---
@@ -158,7 +155,19 @@ class SymulatorWindyGUI:
 
     def odswiez_widok(self):
         stan = self.winda.snapshot()
-        self.etykieta_stanu.config(text=f"PIĘTRO: {stan['aktualne_pietro']}\nKIERUNEK: {stan['kierunek']}\nRUCH: {stan['czy_jedzie']}\nSTOJI: {stan['czy_stoi_na_przystanku']}\nPOZOSTAŁO TICKÓW: {stan['ticki_do_nastepnego_pietra']}\n\nKABINA: {stan['oczekujace']['wybory_z_kabiny']}")
+        
+        # --- ZMIENIONA SEKCJA - Dodano wezwania_gora i wezwania_dol ---
+        self.etykieta_stanu.config(
+            text=f"PIĘTRO: {stan['aktualne_pietro']}\n"
+                 f"KIERUNEK: {stan['kierunek']}\n"
+                 f"RUCH: {stan['czy_jedzie']}\n"
+                 f"STOJI: {stan['czy_stoi_na_przystanku']}\n"
+                 f"POZOSTAŁO TICKÓW: {stan['ticki_do_nastepnego_pietra']}\n\n"
+                 f"WEZWANIA GÓRA: {stan['oczekujace'].get('wezwania_gora', [])}\n"
+                 f"WEZWANIA DÓŁ:  {stan['oczekujace'].get('wezwania_dol', [])}\n"
+                 f"KABINA: {stan['oczekujace'].get('wybory_z_kabiny', [])}"
+        )
+        # ---------------------------------------------------------------
         
         akt_p = stan["aktualne_pietro"]
         str_kier = str(stan["kierunek"]).split('.')[-1]
