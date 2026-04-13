@@ -130,9 +130,44 @@ class SilnikWindy:
             "obciazenie": self.obciazenie,
             "maks_pojemnosc": self.maks_pojemnosc,
             "oczekujace": {
-                "wezwania_gora": sorted(self.wezwania_gora),
-                "wezwania_dol": sorted(self.wezwania_dol),
-                "wybory_z_kabiny": sorted(self.wybory_z_kabiny),
+                "wezwania_gora": [
+                    {
+                        "pietro": pietro,
+                        "zrodla": list({
+                            z.zrodlo.name
+                            for z in self.zgloszenia_po_kluczu.get(
+                                ("WEZWANIE", pietro, Kierunek.GORA), []
+                            )
+                        })
+                    }
+                    for pietro in sorted(self.wezwania_gora)
+                ],
+
+                "wezwania_dol": [
+                    {
+                        "pietro": pietro,
+                        "zrodla": list({
+                            z.zrodlo.name
+                            for z in self.zgloszenia_po_kluczu.get(
+                                ("WEZWANIE", pietro, Kierunek.DOL), []
+                            )
+                        })
+                    }
+                    for pietro in sorted(self.wezwania_dol)
+                ],
+
+                "wybory_z_kabiny": [
+                    {
+                        "pietro": pietro,
+                        "zrodla": list({
+                            z.zrodlo.name
+                            for z in self.zgloszenia_po_kluczu.get(
+                                ("KABINA", pietro), []
+                            )
+                        })
+                    }
+                    for pietro in sorted(self.wybory_z_kabiny)
+                ],
             },
             "liczba_aktywnych_zgloszen": self.liczba_aktywnych_zgloszen(),
         }
