@@ -68,26 +68,37 @@ class SymulatorWindyGUI:
         ustawienia_frame = tk.Frame(top_frame, bg="#202124", padx=10, pady=5)
         ustawienia_frame.pack(side=tk.RIGHT, padx=20)
         
-        # Suwak interwału
+        # Suwak interwału + pole tekstowe
         tk.Label(ustawienia_frame, text="Interwał ticku (ms)", bg="#202124", fg="#cccccc", 
-                font=("Segoe UI", 9)).grid(row=0, column=0, columnspan=2, pady=(0,2))
+                font=("Segoe UI", 9)).grid(row=0, column=0, columnspan=3, pady=(0,2))
+        
         self.scale_interwal = ttk.Scale(ustawienia_frame, from_=1, to=2000, orient=tk.HORIZONTAL,
-                                       variable=self.interwal_var, command=self._zmiana_interwalu)
-        self.scale_interwal.grid(row=1, column=0, sticky="ew", padx=(0,10))
+                                       variable=self.interwal_var, command=self._zmiana_interwalu_suwak)
+        self.scale_interwal.grid(row=1, column=0, sticky="ew", padx=(0,5))
+        
+        # Pole do ręcznego wpisania interwału
+        vcmd = (self.root.register(self._waliduj_interwal), '%P')
+        self.entry_interwal = tk.Entry(ustawienia_frame, textvariable=self.interwal_var, 
+                                      width=6, font=("Segoe UI", 9), justify='center',
+                                      validate='key', validatecommand=vcmd)
+        self.entry_interwal.grid(row=1, column=1, padx=(0,5))
+        self.entry_interwal.bind('<Return>', self._ustaw_interwal_z_klawiatury)
+        self.entry_interwal.bind('<FocusOut>', self._ustaw_interwal_z_klawiatury)
+        
         self.lbl_interwal = tk.Label(ustawienia_frame, text="400 ms", bg="#202124", fg="white", 
                                      font=("Segoe UI", 9, "bold"), width=7)
-        self.lbl_interwal.grid(row=1, column=1)
+        self.lbl_interwal.grid(row=1, column=2)
         self.interwal_var.trace_add("write", lambda *_: self.lbl_interwal.config(text=f"{self.interwal_var.get()} ms"))
         
         # Suwak liczby pięter
         tk.Label(ustawienia_frame, text="Liczba pięter", bg="#202124", fg="#cccccc", 
-                font=("Segoe UI", 9)).grid(row=2, column=0, columnspan=2, pady=(10,2))
-        self.scale_pietra = ttk.Scale(ustawienia_frame, from_=6, to=18, orient=tk.HORIZONTAL,
+                font=("Segoe UI", 9)).grid(row=2, column=0, columnspan=3, pady=(10,2))
+        self.scale_pietra = ttk.Scale(ustawienia_frame, from_=5, to=18, orient=tk.HORIZONTAL,
                                      variable=self.pietra_var, command=self._zmiana_pieter)
-        self.scale_pietra.grid(row=3, column=0, sticky="ew", padx=(0,10))
+        self.scale_pietra.grid(row=3, column=0, columnspan=2, sticky="ew", padx=(0,5))
         self.lbl_pietra = tk.Label(ustawienia_frame, text="10", bg="#202124", fg="white", 
                                    font=("Segoe UI", 9, "bold"), width=7)
-        self.lbl_pietra.grid(row=3, column=1)
+        self.lbl_pietra.grid(row=3, column=2)
         self.pietra_var.trace_add("write", lambda *_: self.lbl_pietra.config(text=str(self.pietra_var.get())))
         
         ustawienia_frame.columnconfigure(0, weight=1)
@@ -111,6 +122,31 @@ class SymulatorWindyGUI:
         self._buduj_panel_kabiny()
         self._buduj_panel_info()
         self.odswiez_widok()
+
+    def _waliduj_interwal(self, wartosc):
+        """Walidacja dla pola Entry: tylko cyfry i zakres 100-2000."""
+        if wartosc == "":
+            return True
+        if not wartosc.isdigit():
+            return False
+        val = int(wartosc)
+        return 100 <= val <= 2000
+
+    def _ustaw_interwal_z_klawiatury(self, event=None):
+        """Ustawia interwał po ręcznym wpisaniu (Enter lub utrata fokusu)."""
+        try:
+            nowa_wartosc = self.interwal_var.get()
+            if 100 <= nowa_wartosc <= 2000:
+                self._zmiana_interwalu()
+            else:
+                # Przywróć poprzednią poprawną wartość
+                self.interwal_var.set(self.interwal_ticku_ms)
+        except tk.TclError:
+            self.interwal_var.set(self.interwal_ticku_ms)
+
+    def _zmiana_interwalu_suwak(self, *args):
+        """Callback dla suwaka."""
+        self._zmiana_interwalu()
 
     def _stworz_karte(self, parent, tytul, bg_kolor="white"):
         kontener = tk.Frame(parent, bg=self.kolor_tla)
@@ -159,7 +195,7 @@ class SymulatorWindyGUI:
         self._buduj_panel_kabina_lcd()
         f_guziki = tk.Frame(self.panel_kabina, bg="#e4e6eb")
         f_guziki.pack(pady=10)
-        # Powrót do oryginalnego układu dwukolumnowego
+        # Oryginalny układ dwukolumnowy
         for i in reversed(range(self.parametry.liczba_pieter)):
             btn = OkraglyPrzycisk(f_guziki, str(i), lambda p=i: self.wybierz(p))
             row = (self.parametry.liczba_pieter - 1 - i) // 2
@@ -182,14 +218,23 @@ class SymulatorWindyGUI:
         tk.Button(f_ctrl, text="Reset", command=self.reset, bg="#f28b82", fg="white", relief=tk.FLAT, 
                  font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
         
+        # Ramka na tekst stanu z paskiem przewijania
         f_log = tk.Frame(self.panel_info, bg="#2b2d30")
         f_log.pack(fill=tk.BOTH, expand=True, padx=5, pady=10)
-        self.etykieta_stanu = tk.Label(f_log, text="", justify=tk.LEFT, font=("Consolas", 9), 
-                                       bg="#2b2d30", fg="#a9b7c6", anchor="nw")
-        self.etykieta_stanu.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        
+        self.text_stanu = tk.Text(f_log, wrap=tk.WORD, font=("Consolas", 9), 
+                                 bg="#2b2d30", fg="#a9b7c6", bd=0, highlightthickness=0)
+        self.text_stanu.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        scrollbar = tk.Scrollbar(f_log, command=self.text_stanu.yview)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.text_stanu.config(yscrollcommand=scrollbar.set)
+        
+        # Ustawienie stanu tylko do odczytu
+        self.text_stanu.config(state=tk.DISABLED)
 
     # --- Obsługa zmian ustawień ---
-    def _zmiana_interwalu(self, *args):
+    def _zmiana_interwalu(self):
         nowy_interwal = self.interwal_var.get()
         self.interwal_ticku_ms = nowy_interwal
         # Jeśli symulacja działa, restartujemy pętlę z nowym interwałem
@@ -303,16 +348,22 @@ class SymulatorWindyGUI:
             sformatowane_linie.sort()
             return "\n" + "\n".join(sformatowane_linie)
 
-        self.etykieta_stanu.config(
-            text=f"PIĘTRO: {stan['aktualne_pietro']}\n"
-                 f"KIERUNEK: {stan['kierunek']}\n"
-                 f"RUCH: {stan['czy_jedzie']}\n"
-                 f"STOJI: {stan['czy_stoi_na_przystanku']}\n"
-                 f"POZOSTAŁO TICKÓW: {stan['ticki_do_nastepnego_pietra']}\n\n"
-                 f"WEZWANIA GÓRA: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wezwania_gora', []))}\n"
-                 f"WEZWANIA DÓŁ: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wezwania_dol', []))}\n"
-                 f"KABINA: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wybory_z_kabiny', []))}"
+        tekst_stanu = (
+            f"PIĘTRO: {stan['aktualne_pietro']}\n"
+            f"KIERUNEK: {stan['kierunek']}\n"
+            f"RUCH: {stan['czy_jedzie']}\n"
+            f"STOJI: {stan['czy_stoi_na_przystanku']}\n"
+            f"POZOSTAŁO TICKÓW: {stan['ticki_do_nastepnego_pietra']}\n\n"
+            f"WEZWANIA GÓRA: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wezwania_gora', []))}\n"
+            f"WEZWANIA DÓŁ: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wezwania_dol', []))}\n"
+            f"KABINA: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wybory_z_kabiny', []))}"
         )
+        
+        # Aktualizacja przewijanego pola tekstowego
+        self.text_stanu.config(state=tk.NORMAL)
+        self.text_stanu.delete(1.0, tk.END)
+        self.text_stanu.insert(tk.END, tekst_stanu)
+        self.text_stanu.config(state=tk.DISABLED)
         
         akt_p = stan["aktualne_pietro"]
         str_kier = str(stan["kierunek"]).split('.')[-1]
