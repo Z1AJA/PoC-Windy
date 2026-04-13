@@ -32,17 +32,18 @@ class OkraglyPrzycisk(tk.Canvas):
 class SymulatorWindyGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Symulator Inteligentnej Windy (Modern UI)")
+        self.root.title("Symulator Inteligentnej Windy")
         self.kolor_tla = "#f0f2f5" 
         self.root.configure(bg=self.kolor_tla)
         
         # --- 1. Inicjalizacja Backendu ---
-        self.parametry = ParametryWindy(liczba_pieter=10)
+        self.parametry = ParametryWindy(liczba_pieter=16, pietro_startowe=0, ticki_przejazdu_na_pietro=5, ticki_postoju=3, 
+                                        maks_pojemnosc=8,poczatkowe_obciazenie=0,)
         self.winda = SilnikWindy(parametry=self.parametry)
         self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600)
         
         self.symulacja_dziala = False
-        self.interwal_ticku_ms = 400
+        self.interwal_ticku_ms = 350
         self.after_id = None 
         
         # --- 2. Layout ---
