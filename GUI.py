@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from Konfiguracja_windy import ParametryWindy
 from Silnik_windy import SilnikWindy
 from Kierunki_i_typy import Kierunek, ZrodloZgloszenia
@@ -36,23 +37,60 @@ class SymulatorWindyGUI:
         self.kolor_tla = "#f0f2f5" 
         self.root.configure(bg=self.kolor_tla)
         
+        # Zmienne dla ustawień
+        self.interwal_var = tk.IntVar(value=400)        # ms
+        self.pietra_var = tk.IntVar(value=10)           # liczba pięter
+        
         # --- 1. Inicjalizacja Backendu ---
-        self.parametry = ParametryWindy(liczba_pieter=10)
+        self.parametry = ParametryWindy(liczba_pieter=self.pietra_var.get())
         self.winda = SilnikWindy(parametry=self.parametry)
         self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600)
         
         self.symulacja_dziala = False
-        self.interwal_ticku_ms = 400
+        self.interwal_ticku_ms = self.interwal_var.get()
         self.after_id = None 
         
-        # --- Panel zegara (zintegrowany z Zegar.py) ---
-        self.panel_zegara = tk.Frame(root, bg="#202124", pady=10)
-        self.panel_zegara.pack(side=tk.TOP, fill=tk.X)
+        # --- Górny pasek: zegar + ustawienia ---
+        top_frame = tk.Frame(root, bg="#202124")
+        top_frame.pack(side=tk.TOP, fill=tk.X)
         
-        self.lbl_zegar = tk.Label(self.panel_zegara, text="08:00:00", font=("Consolas", 28, "bold"), bg="#202124", fg="#ffffff")
+        # Zegar (lewa strona)
+        self.panel_zegara = tk.Frame(top_frame, bg="#202124", pady=5)
+        self.panel_zegara.pack(side=tk.LEFT, padx=20)
+        self.lbl_zegar = tk.Label(self.panel_zegara, text="08:00:00", font=("Consolas", 28, "bold"), 
+                                  bg="#202124", fg="#ffffff")
         self.lbl_zegar.pack()
-        self.lbl_dzien = tk.Label(self.panel_zegara, text="PONIEDZIAŁEK", font=("Segoe UI", 11, "bold"), bg="#202124", fg="#81c995")
+        self.lbl_dzien = tk.Label(self.panel_zegara, text="PONIEDZIAŁEK", font=("Segoe UI", 11, "bold"), 
+                                  bg="#202124", fg="#81c995")
         self.lbl_dzien.pack()
+        
+        # Panel ustawień (prawa strona)
+        ustawienia_frame = tk.Frame(top_frame, bg="#202124", padx=10, pady=5)
+        ustawienia_frame.pack(side=tk.RIGHT, padx=20)
+        
+        # Suwak interwału
+        tk.Label(ustawienia_frame, text="Interwał ticku (ms)", bg="#202124", fg="#cccccc", 
+                font=("Segoe UI", 9)).grid(row=0, column=0, columnspan=2, pady=(0,2))
+        self.scale_interwal = ttk.Scale(ustawienia_frame, from_=1, to=2000, orient=tk.HORIZONTAL,
+                                       variable=self.interwal_var, command=self._zmiana_interwalu)
+        self.scale_interwal.grid(row=1, column=0, sticky="ew", padx=(0,10))
+        self.lbl_interwal = tk.Label(ustawienia_frame, text="400 ms", bg="#202124", fg="white", 
+                                     font=("Segoe UI", 9, "bold"), width=7)
+        self.lbl_interwal.grid(row=1, column=1)
+        self.interwal_var.trace_add("write", lambda *_: self.lbl_interwal.config(text=f"{self.interwal_var.get()} ms"))
+        
+        # Suwak liczby pięter
+        tk.Label(ustawienia_frame, text="Liczba pięter", bg="#202124", fg="#cccccc", 
+                font=("Segoe UI", 9)).grid(row=2, column=0, columnspan=2, pady=(10,2))
+        self.scale_pietra = ttk.Scale(ustawienia_frame, from_=6, to=18, orient=tk.HORIZONTAL,
+                                     variable=self.pietra_var, command=self._zmiana_pieter)
+        self.scale_pietra.grid(row=3, column=0, sticky="ew", padx=(0,10))
+        self.lbl_pietra = tk.Label(ustawienia_frame, text="10", bg="#202124", fg="white", 
+                                   font=("Segoe UI", 9, "bold"), width=7)
+        self.lbl_pietra.grid(row=3, column=1)
+        self.pietra_var.trace_add("write", lambda *_: self.lbl_pietra.config(text=str(self.pietra_var.get())))
+        
+        ustawienia_frame.columnconfigure(0, weight=1)
         
         # --- 2. Layout główny (kontener na resztę interfejsu) ---
         self.main_container = tk.Frame(root, bg=self.kolor_tla)
@@ -82,23 +120,29 @@ class SymulatorWindyGUI:
         karta.pack(fill=tk.BOTH, expand=True, ipadx=10, ipady=10)
         return karta
 
+    def _czysc_panel(self, panel):
+        """Usuwa wszystkie widgety z danego panelu."""
+        for widget in panel.winfo_children():
+            widget.destroy()
+
     def _buduj_panel_zewnatrz(self):
+        self._czysc_panel(self.panel_zewnatrz)
         for i in reversed(range(self.parametry.liczba_pieter)):
             f = tk.Frame(self.panel_zewnatrz, bg="white")
             f.pack(pady=4)
             tk.Label(f, text=f"P{i:02d}", width=3, bg="white", font=("Segoe UI", 10, "bold")).pack(side=tk.LEFT)
             
             # Przycisk w górę
-            btn_up = tk.Button(f, text="▲", command=lambda p=i: self.wezwij(p, Kierunek.GORA), relief=tk.FLAT, bg="#e8f0fe", font=("Arial", 10))
+            btn_up = tk.Button(f, text="▲", command=lambda p=i: self.wezwij(p, Kierunek.GORA), 
+                              relief=tk.FLAT, bg="#e8f0fe", font=("Arial", 10))
             btn_up.pack(side=tk.LEFT, padx=2)
-            # Zablokowanie przycisku GÓRA na najwyższym piętrze
             if i == self.parametry.liczba_pieter - 1:
                 btn_up.config(state=tk.DISABLED, bg="#f8f9fa", fg="#cccccc")
             
             # Przycisk w dół
-            btn_down = tk.Button(f, text="▼", command=lambda p=i: self.wezwij(p, Kierunek.DOL), relief=tk.FLAT, bg="#fce8e6", font=("Arial", 10))
+            btn_down = tk.Button(f, text="▼", command=lambda p=i: self.wezwij(p, Kierunek.DOL), 
+                                relief=tk.FLAT, bg="#fce8e6", font=("Arial", 10))
             btn_down.pack(side=tk.LEFT, padx=2)
-            # Zablokowanie przycisku DÓŁ na najniższym piętrze
             if i == 0:
                 btn_down.config(state=tk.DISABLED, bg="#f8f9fa", fg="#cccccc")
 
@@ -111,29 +155,69 @@ class SymulatorWindyGUI:
         self.ekran_kierunek.pack(side=tk.RIGHT)
 
     def _buduj_panel_kabiny(self):
+        self._czysc_panel(self.panel_kabina)
         self._buduj_panel_kabina_lcd()
         f_guziki = tk.Frame(self.panel_kabina, bg="#e4e6eb")
         f_guziki.pack(pady=10)
+        # Powrót do oryginalnego układu dwukolumnowego
         for i in reversed(range(self.parametry.liczba_pieter)):
             btn = OkraglyPrzycisk(f_guziki, str(i), lambda p=i: self.wybierz(p))
-            btn.grid(row=(self.parametry.liczba_pieter-1-i)//2, column=(self.parametry.liczba_pieter-1-i)%2, padx=8, pady=8)
+            row = (self.parametry.liczba_pieter - 1 - i) // 2
+            col = (self.parametry.liczba_pieter - 1 - i) % 2
+            btn.grid(row=row, column=col, padx=8, pady=8)
 
     def _buduj_panel_info(self):
         f_ctrl = tk.Frame(self.panel_info, bg="white")
         f_ctrl.pack(pady=10)
         
         # Przyciski sterowania
-        tk.Button(f_ctrl, text="Krok +1", command=self.krok, bg="#e8eaed", relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
-        tk.Button(f_ctrl, text="Piętro +1", command=self.skok_pietro, bg="#d2e3fc", relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
+        tk.Button(f_ctrl, text="Krok +1", command=self.krok, bg="#e8eaed", relief=tk.FLAT, 
+                 font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
+        tk.Button(f_ctrl, text="Piętro +1", command=self.skok_pietro, bg="#d2e3fc", relief=tk.FLAT, 
+                 font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
         
-        self.btn_play = tk.Button(f_ctrl, text="Start", command=self.przelacz, bg="#81c995", fg="white", relief=tk.FLAT, width=8, font=("Segoe UI", 9, "bold"))
+        self.btn_play = tk.Button(f_ctrl, text="Start", command=self.przelacz, bg="#81c995", fg="white", 
+                                 relief=tk.FLAT, width=8, font=("Segoe UI", 9, "bold"))
         self.btn_play.pack(side=tk.LEFT, padx=2)
-        tk.Button(f_ctrl, text="Reset", command=self.reset, bg="#f28b82", fg="white", relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
+        tk.Button(f_ctrl, text="Reset", command=self.reset, bg="#f28b82", fg="white", relief=tk.FLAT, 
+                 font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
         
         f_log = tk.Frame(self.panel_info, bg="#2b2d30")
         f_log.pack(fill=tk.BOTH, expand=True, padx=5, pady=10)
-        self.etykieta_stanu = tk.Label(f_log, text="", justify=tk.LEFT, font=("Consolas", 9), bg="#2b2d30", fg="#a9b7c6", anchor="nw")
+        self.etykieta_stanu = tk.Label(f_log, text="", justify=tk.LEFT, font=("Consolas", 9), 
+                                       bg="#2b2d30", fg="#a9b7c6", anchor="nw")
         self.etykieta_stanu.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+    # --- Obsługa zmian ustawień ---
+    def _zmiana_interwalu(self, *args):
+        nowy_interwal = self.interwal_var.get()
+        self.interwal_ticku_ms = nowy_interwal
+        # Jeśli symulacja działa, restartujemy pętlę z nowym interwałem
+        if self.symulacja_dziala:
+            if self.after_id:
+                self.root.after_cancel(self.after_id)
+            self.petla()
+
+    def _zmiana_pieter(self, *args):
+        nowa_liczba = self.pietra_var.get()
+        if nowa_liczba == self.parametry.liczba_pieter:
+            return
+        
+        # Zatrzymaj symulację
+        self.symulacja_dziala = False
+        if self.after_id:
+            self.root.after_cancel(self.after_id)
+            self.after_id = None
+        self.btn_play.config(text="Start", bg="#81c995")
+        
+        # Utwórz nowe parametry i windę
+        self.parametry = ParametryWindy(liczba_pieter=nowa_liczba)
+        self.winda = SilnikWindy(parametry=self.parametry)
+        
+        # Przebuduj interfejs zależny od liczby pięter
+        self._buduj_panel_zewnatrz()
+        self._buduj_panel_kabiny()
+        self.odswiez_widok()
 
     # --- LOGIKA ---
     def skok_pietro(self):
@@ -182,13 +266,13 @@ class SymulatorWindyGUI:
         stan = self.winda.snapshot()
         tick = self.winda.aktualny_tick
         
-        # --- Aktualizacja zegara (integracja z Zegar.py) ---
+        # --- Aktualizacja zegara ---
         dane_czasu = self.czas_sym.tick_na_czas(tick)
         godz_str = f"{dane_czasu['godzina']:02d}:{dane_czasu['minuta']:02d}:{dane_czasu['sekunda']:02d}"
         self.lbl_zegar.config(text=godz_str)
         self.lbl_dzien.config(text=NAZWY_DNI_TYGODNIA[dane_czasu['dzien_tygodnia']].upper())
         
-        # --- Bezpieczne formatowanie wezwań (oryginalny kod) ---
+        # --- Bezpieczne formatowanie wezwań ---
         def bezpiecznie_formatuj_wezwania(zbior):
             if not zbior:
                 return ""
@@ -198,7 +282,6 @@ class SymulatorWindyGUI:
                 nr_pietra = "?"
                 zrodlo = "CZŁOWIEK"
                 
-                # Wyciąganie danych w zależności od tego jak są zapisane w backendzie
                 if isinstance(element, int):
                     nr_pietra = element
                 elif isinstance(element, dict):
@@ -215,10 +298,8 @@ class SymulatorWindyGUI:
                 else:
                     nr_pietra = str(element)
                 
-                # Zapisujemy w oczekiwanym formacie: [nr pietra, źródło wezwania]
                 sformatowane_linie.append(f"[{nr_pietra}, {zrodlo}]")
             
-            # Sortujemy po stringach (co rozwiązuje crash przy sortowaniu Enumów/Obiektów)
             sformatowane_linie.sort()
             return "\n" + "\n".join(sformatowane_linie)
 
@@ -232,7 +313,6 @@ class SymulatorWindyGUI:
                  f"WEZWANIA DÓŁ: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wezwania_dol', []))}\n"
                  f"KABINA: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wybory_z_kabiny', []))}"
         )
-        # -----------------------------------------------------------------
         
         akt_p = stan["aktualne_pietro"]
         str_kier = str(stan["kierunek"]).split('.')[-1]

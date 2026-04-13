@@ -5,8 +5,8 @@ from dataclasses import dataclass
 class ParametryWindy:
     liczba_pieter: int = 15
     pietro_startowe: int = 0
-    ticki_przejazdu_na_pietro: int = 4
-    ticki_postoju: int = 4
+    ticki_przejazdu_na_pietro: int = 5
+    ticki_postoju: int = 5
     maks_pojemnosc: int = 6
     poczatkowe_obciazenie: int = 0
 
