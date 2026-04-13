@@ -32,18 +32,17 @@ class OkraglyPrzycisk(tk.Canvas):
 class SymulatorWindyGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Symulator Inteligentnej Windy")
+        self.root.title("Symulator Inteligentnej Windy (Modern UI)")
         self.kolor_tla = "#f0f2f5" 
         self.root.configure(bg=self.kolor_tla)
         
         # --- 1. Inicjalizacja Backendu ---
-        self.parametry = ParametryWindy(liczba_pieter=16, pietro_startowe=0, ticki_przejazdu_na_pietro=5, ticki_postoju=3, 
-                                        maks_pojemnosc=8,poczatkowe_obciazenie=0,)
+        self.parametry = ParametryWindy(liczba_pieter=10)
         self.winda = SilnikWindy(parametry=self.parametry)
         self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600)
         
         self.symulacja_dziala = False
-        self.interwal_ticku_ms = 350
+        self.interwal_ticku_ms = 400
         self.after_id = None 
         
         # --- 2. Layout ---
@@ -157,18 +156,52 @@ class SymulatorWindyGUI:
     def odswiez_widok(self):
         stan = self.winda.snapshot()
         
-        # --- ZMIENIONA SEKCJA - Dodano wezwania_gora i wezwania_dol ---
+        # --- ZMIENIONA I BEZPIECZNA SEKCJA FORMATOWANIA ---
+        def bezpiecznie_formatuj_wezwania(zbior):
+            if not zbior:
+                return ""
+            
+            sformatowane_linie = []
+            for element in zbior:
+                nr_pietra = "?"
+                zrodlo = "CZŁOWIEK"
+                
+                # Wyciąganie danych w zależności od tego jak są zapisane w backendzie
+                if isinstance(element, int):
+                    nr_pietra = element
+                elif isinstance(element, dict):
+                    nr_pietra = element.get("pietro", "?")
+                    zrodlo = str(element.get("zrodlo", "CZŁOWIEK")).split('.')[-1]
+                elif hasattr(element, "pietro"):
+                    nr_pietra = getattr(element, "pietro")
+                    if hasattr(element, "zrodlo"):
+                        zrodlo = str(getattr(element, "zrodlo")).split('.')[-1]
+                elif isinstance(element, (list, tuple)):
+                    nr_pietra = element[0]
+                    if len(element) > 1:
+                        zrodlo = str(element[1]).split('.')[-1]
+                else:
+                    nr_pietra = str(element)
+                
+                # Zapisujemy w oczekiwanym formacie: [nr pietra, źródło wezwania]
+                sformatowane_linie.append(f"[{nr_pietra}, {zrodlo}]")
+            
+            # Sortujemy po stringach (co rozwiązuje crash przy sortowaniu Enumów/Obiektów)
+            sformatowane_linie.sort()
+            
+            return "\n" + "\n".join(sformatowane_linie)
+
         self.etykieta_stanu.config(
             text=f"PIĘTRO: {stan['aktualne_pietro']}\n"
                  f"KIERUNEK: {stan['kierunek']}\n"
                  f"RUCH: {stan['czy_jedzie']}\n"
                  f"STOJI: {stan['czy_stoi_na_przystanku']}\n"
                  f"POZOSTAŁO TICKÓW: {stan['ticki_do_nastepnego_pietra']}\n\n"
-                 f"WEZWANIA GÓRA: {stan['oczekujace'].get('wezwania_gora', [])}\n"
-                 f"WEZWANIA DÓŁ:  {stan['oczekujace'].get('wezwania_dol', [])}\n"
-                 f"KABINA: {stan['oczekujace'].get('wybory_z_kabiny', [])}"
+                 f"WEZWANIA GÓRA: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wezwania_gora', []))}\n"
+                 f"WEZWANIA DÓŁ: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wezwania_dol', []))}\n"
+                 f"KABINA: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wybory_z_kabiny', []))}"
         )
-        # ---------------------------------------------------------------
+        # -----------------------------------------------------------------
         
         akt_p = stan["aktualne_pietro"]
         str_kier = str(stan["kierunek"]).split('.')[-1]
