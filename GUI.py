@@ -45,17 +45,29 @@ class SymulatorWindyGUI:
         self.interwal_ticku_ms = 400
         self.after_id = None 
         
-        # --- 2. Layout ---
-        self.panel_zewnatrz = self._stworz_karte(root, "Zewnątrz (Wezwania)")
-        self.panel_mapa = self._stworz_karte(root, "Mapa Szybu")
+        # --- Panel zegara (zintegrowany z Zegar.py) ---
+        self.panel_zegara = tk.Frame(root, bg="#202124", pady=10)
+        self.panel_zegara.pack(side=tk.TOP, fill=tk.X)
+        
+        self.lbl_zegar = tk.Label(self.panel_zegara, text="08:00:00", font=("Consolas", 28, "bold"), bg="#202124", fg="#ffffff")
+        self.lbl_zegar.pack()
+        self.lbl_dzien = tk.Label(self.panel_zegara, text="PONIEDZIAŁEK", font=("Segoe UI", 11, "bold"), bg="#202124", fg="#81c995")
+        self.lbl_dzien.pack()
+        
+        # --- 2. Layout główny (kontener na resztę interfejsu) ---
+        self.main_container = tk.Frame(root, bg=self.kolor_tla)
+        self.main_container.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+        
+        self.panel_zewnatrz = self._stworz_karte(self.main_container, "Zewnątrz (Wezwania)")
+        self.panel_mapa = self._stworz_karte(self.main_container, "Mapa Szybu")
         
         self.canvas_wysokosc = 550
         self.canvas = tk.Canvas(self.panel_mapa, width=150, height=self.canvas_wysokosc, 
                                 bg="#ffffff", bd=0, highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
-        self.panel_kabina = self._stworz_karte(root, "Wnętrze Kabiny", bg_kolor="#e4e6eb")
-        self.panel_info = self._stworz_karte(root, "Sterowanie i Stan")
+        self.panel_kabina = self._stworz_karte(self.main_container, "Wnętrze Kabiny", bg_kolor="#e4e6eb")
+        self.panel_info = self._stworz_karte(self.main_container, "Sterowanie i Stan")
         
         self._buduj_panel_zewnatrz()
         self._buduj_panel_kabiny()
@@ -64,7 +76,7 @@ class SymulatorWindyGUI:
 
     def _stworz_karte(self, parent, tytul, bg_kolor="white"):
         kontener = tk.Frame(parent, bg=self.kolor_tla)
-        kontener.pack(side=tk.LEFT, fill=tk.Y, padx=12, pady=12)
+        kontener.pack(side=tk.LEFT, fill=tk.Y, padx=8, pady=8)
         tk.Label(kontener, text=tytul, bg=self.kolor_tla, fg="#444444", font=("Segoe UI", 11, "bold")).pack(pady=(0, 6), anchor="w")
         karta = tk.Frame(kontener, bg=bg_kolor, bd=0, highlightthickness=1, highlightbackground="#dcdfe6")
         karta.pack(fill=tk.BOTH, expand=True, ipadx=10, ipady=10)
@@ -129,25 +141,38 @@ class SymulatorWindyGUI:
             self.winda.krok()
         self.odswiez_widok()
 
-    def krok(self): self.winda.krok(); self.odswiez_widok()
+    def krok(self): 
+        self.winda.krok()
+        self.odswiez_widok()
+
     def reset(self): 
         self.symulacja_dziala = False
-        if self.after_id: self.root.after_cancel(self.after_id)
+        if self.after_id: 
+            self.root.after_cancel(self.after_id)
         self.winda = SilnikWindy(self.parametry)
+        self.btn_play.config(text="Start", bg="#81c995")
         self.odswiez_widok()
 
     def przelacz(self):
         self.symulacja_dziala = not self.symulacja_dziala
-        self.btn_play.config(text="Stop" if self.symulacja_dziala else "Start", bg="#f28b82" if self.symulacja_dziala else "#81c995")
-        if self.symulacja_dziala: self.petla()
+        self.btn_play.config(text="Stop" if self.symulacja_dziala else "Start", 
+                             bg="#f28b82" if self.symulacja_dziala else "#81c995")
+        if self.symulacja_dziala: 
+            self.petla()
 
     def petla(self):
         if self.symulacja_dziala:
-            self.winda.krok(); self.odswiez_widok()
+            self.winda.krok()
+            self.odswiez_widok()
             self.after_id = self.root.after(self.interwal_ticku_ms, self.petla)
 
-    def wezwij(self, p, k): self.winda.dodaj_wezwanie_z_pietra_teraz(p, k, ZrodloZgloszenia.CZLOWIEK); self.odswiez_widok()
-    def wybierz(self, p): self.winda.dodaj_wybor_z_kabiny_teraz(p, ZrodloZgloszenia.CZLOWIEK); self.odswiez_widok()
+    def wezwij(self, p, k): 
+        self.winda.dodaj_wezwanie_z_pietra_teraz(p, k, ZrodloZgloszenia.CZLOWIEK)
+        self.odswiez_widok()
+
+    def wybierz(self, p): 
+        self.winda.dodaj_wybor_z_kabiny_teraz(p, ZrodloZgloszenia.CZLOWIEK)
+        self.odswiez_widok()
 
     def _rysuj_zaokraglony_prostokat(self, x1, y1, x2, y2, promien=8, **kwargs):
         punkty = [x1+promien, y1, x1+promien, y1, x2-promien, y1, x2-promien, y1, x2, y1, x2, y1+promien, x2, y1+promien, x2, y2-promien, x2, y2-promien, x2, y2, x2-promien, y2, x2-promien, y2, x1+promien, y2, x1+promien, y2, x1, y2, x1, y2-promien, x1, y2-promien, x1, y1+promien, x1, y1+promien, x1, y1]
@@ -155,8 +180,15 @@ class SymulatorWindyGUI:
 
     def odswiez_widok(self):
         stan = self.winda.snapshot()
+        tick = self.winda.aktualny_tick
         
-        # --- ZMIENIONA I BEZPIECZNA SEKCJA FORMATOWANIA ---
+        # --- Aktualizacja zegara (integracja z Zegar.py) ---
+        dane_czasu = self.czas_sym.tick_na_czas(tick)
+        godz_str = f"{dane_czasu['godzina']:02d}:{dane_czasu['minuta']:02d}:{dane_czasu['sekunda']:02d}"
+        self.lbl_zegar.config(text=godz_str)
+        self.lbl_dzien.config(text=NAZWY_DNI_TYGODNIA[dane_czasu['dzien_tygodnia']].upper())
+        
+        # --- Bezpieczne formatowanie wezwań (oryginalny kod) ---
         def bezpiecznie_formatuj_wezwania(zbior):
             if not zbior:
                 return ""
@@ -188,7 +220,6 @@ class SymulatorWindyGUI:
             
             # Sortujemy po stringach (co rozwiązuje crash przy sortowaniu Enumów/Obiektów)
             sformatowane_linie.sort()
-            
             return "\n" + "\n".join(sformatowane_linie)
 
         self.etykieta_stanu.config(
@@ -213,7 +244,8 @@ class SymulatorWindyGUI:
             offset = ulamek if str_kier == "GORA" else -ulamek
 
         self.ekran_pietro.config(text=str(akt_p))
-        self.ekran_kierunek.config(text="▲" if str_kier == "GORA" else "▼" if str_kier == "DOL" else "-", fg="#81c995" if str_kier == "GORA" else "#f28b82" if str_kier == "DOL" else "#7f8c8d")
+        self.ekran_kierunek.config(text="▲" if str_kier == "GORA" else "▼" if str_kier == "DOL" else "-", 
+                                   fg="#81c995" if str_kier == "GORA" else "#f28b82" if str_kier == "DOL" else "#7f8c8d")
 
         self.canvas.delete("all")
         h_p = self.canvas_wysokosc / self.parametry.liczba_pieter
@@ -224,7 +256,8 @@ class SymulatorWindyGUI:
         
         w_h = h_p * 0.8
         y_mid = self.canvas_wysokosc - ((akt_p + offset) * h_p) - (h_p/2)
-        self._rysuj_zaokraglony_prostokat(50, y_mid - w_h/2, 120, y_mid + w_h/2, promien=8, fill="#fbbc04" if stan["czy_stoi_na_przystanku"] else "#4285f4")
+        self._rysuj_zaokraglony_prostokat(50, y_mid - w_h/2, 120, y_mid + w_h/2, promien=8, 
+                                          fill="#fbbc04" if stan["czy_stoi_na_przystanku"] else "#4285f4")
 
 if __name__ == "__main__":
     root = tk.Tk()
