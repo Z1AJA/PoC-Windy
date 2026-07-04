@@ -1,0 +1,173 @@
+{
+  "plan_id": "rok_1_grupa_2_polowa_1",
+  "rok": 1,
+  "grupa": 2,
+  "polowa_semestru": 1,
+  "dni": [
+    {
+      "dzien": "poniedzialek",
+      "bloki": [
+        {
+          "godzina_od": "09:45",
+          "godzina_do": "11:15",
+          "nazwa": "(PO) SPiWP cw1",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        },
+        {
+          "godzina_od": "11:30",
+          "godzina_do": "13:00",
+          "nazwa": "(PO) WSM [wyklad]",
+          "czy_obowiazkowe": false,
+          "wspolczynnik_uczestnictwa": 0.5
+        },
+        {
+          "godzina_od": "13:15",
+          "godzina_do": "14:45",
+          "nazwa": "RCiRR [wyklad]",
+          "czy_obowiazkowe": false,
+          "wspolczynnik_uczestnictwa": 0.5
+        },
+        {
+          "godzina_od": "15:00",
+          "godzina_do": "16:30",
+          "nazwa": "PK [wyklad]",
+          "czy_obowiazkowe": false,
+          "wspolczynnik_uczestnictwa": 0.5
+        }
+      ]
+    },
+    {
+      "dzien": "wtorek",
+      "bloki": [
+        {
+          "godzina_od": "08:00",
+          "godzina_do": "09:30",
+          "nazwa": "(PO) ZPiU [wyklad]",
+          "czy_obowiazkowe": false,
+          "wspolczynnik_uczestnictwa": 0.5
+        },
+        {
+          "godzina_od": "09:45",
+          "godzina_do": "11:15",
+          "nazwa": "(PO) ZPiU cw1",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        },
+        {
+          "godzina_od": "11:30",
+          "godzina_do": "13:00",
+          "nazwa": "BD [wyklad]",
+          "czy_obowiazkowe": false,
+          "wspolczynnik_uczestnictwa": 0.5
+        },
+        {
+          "godzina_od": "13:15",
+          "godzina_do": "14:45",
+          "nazwa": "JS [wyklad]",
+          "czy_obowiazkowe": false,
+          "wspolczynnik_uczestnictwa": 0.5
+        },
+        {
+          "godzina_od": "15:00",
+          "godzina_do": "16:30",
+          "nazwa": "BD lab4",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        }
+      ]
+    },
+    {
+      "dzien": "sroda",
+      "bloki": [
+        {
+          "godzina_od": "08:00",
+          "godzina_do": "09:30",
+          "nazwa": "PK pr2",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        },
+        {
+          "godzina_od": "09:45",
+          "godzina_do": "11:15",
+          "nazwa": "J. obcy [wyklad]",
+          "czy_obowiazkowe": false,
+          "wspolczynnik_uczestnictwa": 0.5
+        },
+        {
+          "godzina_od": "11:30",
+          "godzina_do": "13:00",
+          "nazwa": "RCiRR cw2",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        },
+        {
+          "godzina_od": "13:15",
+          "godzina_do": "14:45",
+          "nazwa": "JS pr2",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        }
+      ]
+    },
+    {
+      "dzien": "czwartek",
+      "bloki": [
+        {
+          "godzina_od": "09:45",
+          "godzina_do": "11:15",
+          "nazwa": "BD lab3",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        },
+        {
+          "godzina_od": "15:00",
+          "godzina_do": "16:30",
+          "nazwa": "(PO) WSM cw2",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        },
+        {
+          "godzina_od": "18:30",
+          "godzina_do": "20:00",
+          "nazwa": "(PO) WSM cw1",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        }
+      ]
+    },
+    {
+      "dzien": "piatek",
+      "bloki": [
+        {
+          "godzina_od": "09:45",
+          "godzina_do": "11:15",
+          "nazwa": "(PO) EI cw1",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        },
+        {
+          "godzina_od": "11:30",
+          "godzina_do": "13:00",
+          "nazwa": "(PO) EI [wyklad]",
+          "czy_obowiazkowe": false,
+          "wspolczynnik_uczestnictwa": 0.5
+        },
+        {
+          "godzina_od": "13:15",
+          "godzina_do": "14:45",
+          "nazwa": "(PO) EI cw2",
+          "czy_obowiazkowe": true,
+          "wspolczynnik_uczestnictwa": 1.0
+        },
+        {
+          "godzina_od": "15:00",
+          "godzina_do": "16:30",
+          "nazwa": "J. obcy [wyklad]",
+          "czy_obowiazkowe": false,
+          "wspolczynnik_uczestnictwa": 0.5
+        }
+      ]
+    }
+  ]
+}
