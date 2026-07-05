@@ -11,28 +11,24 @@
           "godzina_od": "09:45",
           "godzina_do": "11:15",
           "nazwa": "(PO) SPiWP cw1",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         },
         {
           "godzina_od": "11:30",
           "godzina_do": "13:00",
           "nazwa": "(PO) GP pr1",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         },
         {
           "godzina_od": "13:15",
           "godzina_do": "14:45",
           "nazwa": "(PO) GP [wyklad]",
-          "czy_obowiazkowe": false,
           "wspolczynnik_uczestnictwa": 0.5
         },
         {
           "godzina_od": "15:00",
           "godzina_do": "16:30",
           "nazwa": "(PO) GP pr2",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         }
       ]
@@ -44,21 +40,18 @@
           "godzina_od": "09:45",
           "godzina_do": "11:15",
           "nazwa": "SOiE [wyklad]",
-          "czy_obowiazkowe": false,
           "wspolczynnik_uczestnictwa": 0.5
         },
         {
           "godzina_od": "11:30",
           "godzina_do": "13:00",
           "nazwa": "(PO) PDwPMATLAB [wyklad]",
-          "czy_obowiazkowe": false,
           "wspolczynnik_uczestnictwa": 0.5
         },
         {
           "godzina_od": "13:15",
           "godzina_do": "14:45",
           "nazwa": "(PO) SWPZ [wyklad]",
-          "czy_obowiazkowe": false,
           "wspolczynnik_uczestnictwa": 0.5
         }
       ]
@@ -70,28 +63,24 @@
           "godzina_od": "08:00",
           "godzina_do": "09:30",
           "nazwa": "SOiE [wyklad]",
-          "czy_obowiazkowe": false,
           "wspolczynnik_uczestnictwa": 0.5
         },
         {
           "godzina_od": "09:45",
           "godzina_do": "11:15",
           "nazwa": "J. obcy [wyklad]",
-          "czy_obowiazkowe": false,
           "wspolczynnik_uczestnictwa": 0.5
         },
         {
           "godzina_od": "13:15",
           "godzina_do": "14:45",
           "nazwa": "PK pr2",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         },
         {
           "godzina_od": "15:00",
           "godzina_do": "16:30",
           "nazwa": "BD lab4",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         }
       ]
@@ -103,21 +92,18 @@
           "godzina_od": "09:45",
           "godzina_do": "11:15",
           "nazwa": "BD lab3",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         },
         {
           "godzina_od": "15:00",
           "godzina_do": "16:30",
           "nazwa": "SOiE pr2",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         },
         {
           "godzina_od": "16:45",
           "godzina_do": "18:15",
           "nazwa": "SOiE cw2",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         }
       ]
@@ -129,35 +115,30 @@
           "godzina_od": "08:00",
           "godzina_do": "09:30",
           "nazwa": "(PO) SWPZ pr1",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         },
         {
           "godzina_od": "09:45",
           "godzina_do": "11:15",
           "nazwa": "(PO) SWPZ pr2",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         },
         {
           "godzina_od": "11:30",
           "godzina_do": "13:00",
           "nazwa": "(PO) PDwPMATLAB pr1",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         },
         {
           "godzina_od": "13:15",
           "godzina_do": "14:45",
           "nazwa": "(PO) PDwPMATLAB pr2",
-          "czy_obowiazkowe": true,
           "wspolczynnik_uczestnictwa": 1.0
         },
         {
           "godzina_od": "15:00",
           "godzina_do": "16:30",
           "nazwa": "J. obcy [wyklad]",
-          "czy_obowiazkowe": false,
           "wspolczynnik_uczestnictwa": 0.5
         }
       ]
