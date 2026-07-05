@@ -45,6 +45,11 @@ class KolejkiPietrowe:
         self._upewnij_pietro(pietro)
         return len(self.kolejki[pietro][kierunek])
 
+    def aktualizuj_pozycje_pozostalych(self, pietro: int, kierunek: str) -> dict[str, int]:
+        self._upewnij_pietro(pietro)
+        kolejka = self.kolejki[pietro][kierunek]
+        return {agent_id: idx + 1 for idx, agent_id in enumerate(kolejka)}
+
     def snapshot(self) -> dict:
         wynik = {}
         for pietro in sorted(self.kolejki.keys()):

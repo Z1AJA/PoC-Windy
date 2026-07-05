@@ -1,0 +1,62 @@
+from __future__ import annotations
+
+import time
+from pathlib import Path
+
+from Czas_symulacji import CzasSymulacji
+from Dashboard_tekstowy import renderuj_dashboard, wyczysc_ekran
+from Konfiguracja_windy import ParametryWindy
+from Loader_planow import wczytaj_repozytorium_planow
+from Menedzer_agentow import KonfiguracjaGrupyAgentow, MenedzerAgentow
+from Silnik_windy import SilnikWindy
+from Ustawienia_projektu import UstawieniaProjektu
+
+
+def main() -> None:
+    repo = wczytaj_repozytorium_planow(Path("./Plany_zajec"))
+    ustawienia = UstawieniaProjektu()
+    parametry = ParametryWindy(
+        liczba_pieter=15,
+        pietro_startowe=0,
+        ticki_przejazdu_na_pietro=4,
+        ticki_postoju=4,
+        maks_pojemnosc=6,
+        poczatkowe_obciazenie=0,
+    )
+    winda = SilnikWindy(parametry=parametry)
+    czas = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=7 * 30 * 60)
+
+    menedzer = MenedzerAgentow(repo, winda, ustawienia)
+    plan_ids = repo.plan_ids()
+
+    # prosta konfiguracja startowa
+    menedzer.dodaj_grupe(KonfiguracjaGrupyAgentow("g1_p4", plan_ids[0], 4, 5))
+    if len(plan_ids) > 1:
+        menedzer.dodaj_grupe(KonfiguracjaGrupyAgentow("g2_p7", plan_ids[1], 7, 4))
+    if len(plan_ids) > 2:
+        menedzer.dodaj_grupe(KonfiguracjaGrupyAgentow("g3_p10", plan_ids[2], 10, 3))
+
+    try:
+        while True:
+            winda.krok()
+            czas_info = czas.tick_na_czas(winda.aktualny_tick)
+            menedzer.krok(czas_info)
+
+            if czas_info["sekunda"] % 2 == 0:
+                wyczysc_ekran()
+                print(renderuj_dashboard(
+                    czas_info=czas_info,
+                    snapshot_windy=winda.snapshot(),
+                    snapshot_menedzera=menedzer.snapshot(),
+                    zdarzenia=menedzer.ostatnie_zdarzenia(12),
+                ))
+                print("\nCtrl+C aby zakończyć.")
+                time.sleep(0.08)
+
+    except KeyboardInterrupt:
+        wyczysc_ekran()
+        print("Symulacja zatrzymana przez użytkownika.")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,8 +1,13 @@
+import random
 import unittest
 
 from Agent_studenta import AgentStudenta, StanAgenta
 from Kolejki_pietrowe import KolejkiPietrowe
+from Menedzer_agentow import KonfiguracjaGrupyAgentow, MenedzerAgentow
 from Modele_planow import BlokZajec, DzienPlanu, PlanZajec
+from Loader_planow import RepozytoriumPlanow
+from Silnik_windy import SilnikWindy
+from Konfiguracja_windy import ParametryWindy
 from Ustawienia_projektu import UstawieniaProjektu
 
 
@@ -23,6 +28,7 @@ class TestyAgentaIKolejek(unittest.TestCase):
                 ),
             ),
         )
+        self.repo = RepozytoriumPlanow({"test_plan": plan})
         self.ustawienia = UstawieniaProjektu()
         self.agent = AgentStudenta(
             id_agenta="A1",
@@ -40,6 +46,7 @@ class TestyAgentaIKolejek(unittest.TestCase):
     def test_przygotowanie_dnia(self) -> None:
         self.agent.przygotuj_dzien("poniedzialek")
         self.assertGreaterEqual(len(self.agent.decyzje_dnia), 1)
+        self.assertGreaterEqual(len(self.agent.harmonogram_dnia), 1)
 
     def test_kolejka_pozycja(self) -> None:
         kolejki = KolejkiPietrowe()
@@ -58,6 +65,28 @@ class TestyAgentaIKolejek(unittest.TestCase):
         p1 = self.ustawienia.prawdopodobienstwo_rezygnacji_schodami(4, "dol", 0)
         p2 = self.ustawienia.prawdopodobienstwo_rezygnacji_schodami(4, "dol", 20)
         self.assertGreaterEqual(p2, p1)
+
+    def test_menedzer_tworzy_agentow(self) -> None:
+        winda = SilnikWindy(
+            parametry=ParametryWindy(
+                liczba_pieter=10,
+                pietro_startowe=0,
+                ticki_przejazdu_na_pietro=3,
+                ticki_postoju=2,
+                maks_pojemnosc=4,
+                poczatkowe_obciazenie=0,
+            )
+        )
+        menedzer = MenedzerAgentow(self.repo, winda, self.ustawienia)
+        menedzer.dodaj_grupe(
+            KonfiguracjaGrupyAgentow(
+                nazwa="g1",
+                plan_id="test_plan",
+                pietro_domowe=4,
+                liczba_agentow=3,
+            )
+        )
+        self.assertEqual(len(menedzer.agenci), 3)
 
 
 if __name__ == "__main__":

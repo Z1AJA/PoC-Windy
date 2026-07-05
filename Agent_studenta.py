@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 
 from Modele_planow import PlanZajec
-from Nawigacja_po_planie import DecyzjaBlokuDnia, zbuduj_plan_dnia_agenta
+from Nawigacja_po_planie import AkcjaDniaAgenta, DecyzjaBlokuDnia, zbuduj_harmonogram_przejazdow_agenta
 from Ustawienia_projektu import UstawieniaProjektu
 
 
@@ -33,6 +33,8 @@ class AgentStudenta:
 
     dzien_planu: str | None = None
     decyzje_dnia: list[DecyzjaBlokuDnia] = field(default_factory=list)
+    harmonogram_dnia: list[AkcjaDniaAgenta] = field(default_factory=list)
+    indeks_nastepnej_akcji: int = 0
 
     pozycja_w_kolejce: int | None = None
     kierunek_kolejki: str | None = None
@@ -40,6 +42,10 @@ class AgentStudenta:
 
     liczba_ghost_calli: int = 0
     liczba_rezygnacji_na_schody: int = 0
+
+    _generator: random.Random = field(init=False, repr=False)
+    _aktualny_tick_pomocniczy: int = field(default=0, init=False, repr=False)
+    log_zdarzen: list[dict] = field(default_factory=list, init=False, repr=False)
 
     def __post_init__(self) -> None:
         if self.pietro_domowe < 0:
@@ -56,14 +62,7 @@ class AgentStudenta:
 
     @property
     def czy_jest_w_akademiku(self) -> bool:
-        return self.stan in {
-            StanAgenta.W_AKADEMIKU,
-            StanAgenta.CZEKA_NA_WINDE_W_DOL,
-            StanAgenta.CZEKA_NA_WINDE_W_GORE,
-            StanAgenta.JEDZIE_WINDA,
-            StanAgenta.IDZIE_SCHODAMI_W_DOL,
-            StanAgenta.IDZIE_SCHODAMI_W_GORE,
-        }
+        return self.stan != StanAgenta.POZA_AKADEMIKIEM
 
     @property
     def czy_czeka_w_kolejce(self) -> bool:
@@ -77,35 +76,29 @@ class AgentStudenta:
 
     def przygotuj_dzien(self, dzien: str) -> None:
         self.dzien_planu = dzien
-        self.decyzje_dnia = zbuduj_plan_dnia_agenta(
+        self.decyzje_dnia, self.harmonogram_dnia = zbuduj_harmonogram_przejazdow_agenta(
             self.plan,
             dzien,
             self._generator,
+            bufor_wyjscia_przed_zajeciami_minuty=self.ustawienia.bufor_wyjscia_przed_zajeciami_minuty,
+            prog_powrotu_do_akademika_minuty=self.ustawienia.prog_powrotu_do_akademika_minuty,
         )
+        self.indeks_nastepnej_akcji = 0
         self._zaloguj("przygotowano_dzien", {
             "dzien": dzien,
             "liczba_blokow": len(self.decyzje_dnia),
+            "liczba_akcji": len(self.harmonogram_dnia),
         })
 
-    def pobierz_bloki_na_ktore_agent_idzie(self) -> list[DecyzjaBlokuDnia]:
-        return [decyzja for decyzja in self.decyzje_dnia if decyzja.czy_agent_idzie]
-
-    def pobierz_pierwszy_blok_na_ktory_idzie(self) -> DecyzjaBlokuDnia | None:
-        bloki = self.pobierz_bloki_na_ktore_agent_idzie()
-        return bloki[0] if bloki else None
-
-    def pobierz_ostatni_blok_na_ktory_idzie(self) -> DecyzjaBlokuDnia | None:
-        bloki = self.pobierz_bloki_na_ktore_agent_idzie()
-        return bloki[-1] if bloki else None
-
-    def planowana_minuta_pierwszego_wyjscia(self) -> int | None:
-        pierwszy = self.pobierz_pierwszy_blok_na_ktory_idzie()
-        if pierwszy is None:
-            return None
-        return max(
-            0,
-            pierwszy.blok.minuta_startu - self.ustawienia.bufor_wyjscia_przed_zajeciami_minuty,
-        )
+    def pobierz_akcje_do_wykonania(self, minuta_dnia: int) -> list[AkcjaDniaAgenta]:
+        akcje = []
+        while self.indeks_nastepnej_akcji < len(self.harmonogram_dnia):
+            akcja = self.harmonogram_dnia[self.indeks_nastepnej_akcji]
+            if akcja.minuta > minuta_dnia:
+                break
+            akcje.append(akcja)
+            self.indeks_nastepnej_akcji += 1
+        return akcje
 
     def dolacz_do_kolejki(
         self,
@@ -134,11 +127,9 @@ class AgentStudenta:
             "cel_pietro": cel_pietro,
         })
 
-    def zaktualizuj_pozycje_w_kolejce(self, pozycja: int) -> None:
+    def zaktualizuj_pozycje_w_kolejce(self, pozycja: int | None) -> None:
         self.pozycja_w_kolejce = pozycja
-        self._zaloguj("aktualizacja_pozycji_w_kolejce", {
-            "pozycja": pozycja,
-        })
+        self._zaloguj("aktualizacja_pozycji_w_kolejce", {"pozycja": pozycja})
 
     def opusc_kolejke(self) -> None:
         self._zaloguj("opuszczono_kolejke", {
@@ -186,6 +177,18 @@ class AgentStudenta:
 
         return False
 
+    def zakoncz_przejscie_schodami(self) -> None:
+        if self.stan == StanAgenta.IDZIE_SCHODAMI_W_DOL:
+            self.aktualne_pietro = self.ustawienia.pietro_parteru
+            self.stan = StanAgenta.POZA_AKADEMIKIEM
+        elif self.stan == StanAgenta.IDZIE_SCHODAMI_W_GORE:
+            self.aktualne_pietro = self.pietro_domowe
+            self.stan = StanAgenta.W_AKADEMIKU
+        self._zaloguj("zakonczono_schody", {
+            "stan_po": self.stan.name,
+            "aktualne_pietro": self.aktualne_pietro,
+        })
+
     def rozpocznij_przejazd_winda(self) -> None:
         self.stan = StanAgenta.JEDZIE_WINDA
         self._zaloguj("rozpoczecie_przejazdu_winda", {
@@ -224,11 +227,10 @@ class AgentStudenta:
             "liczba_rezygnacji_na_schody": self.liczba_rezygnacji_na_schody,
             "dzien_planu": self.dzien_planu,
             "liczba_blokow_w_dniu": len(self.decyzje_dnia),
+            "liczba_akcji_w_dniu": len(self.harmonogram_dnia),
         }
 
     def _zaloguj(self, typ: str, payload: dict) -> None:
-        if not hasattr(self, "log_zdarzen"):
-            self.log_zdarzen = []
         self.log_zdarzen.append({
             "typ": typ,
             "payload": payload,

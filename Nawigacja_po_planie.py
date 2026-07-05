@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 from dataclasses import dataclass
 
-from Modele_planow import BlokZajec, PlanZajec, czas_hhmm_na_minuty
+from Modele_planow import BlokZajec, PlanZajec, czas_hhmm_na_minuty, czas_minuty_na_hhmm
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +19,16 @@ class DecyzjaBlokuDnia:
             f"{self.dzien} | {self.blok.godzina_od}-{self.blok.godzina_do} | "
             f"{self.blok.nazwa} | {status} | {self.powod}"
         )
+
+
+@dataclass(frozen=True, slots=True)
+class AkcjaDniaAgenta:
+    minuta: int
+    typ_akcji: str
+    opis: str
+
+    def minuta_hhmm(self) -> str:
+        return czas_minuty_na_hhmm(self.minuta)
 
 
 def pobierz_bloki_dnia(plan: PlanZajec, dzien: str) -> list[BlokZajec]:
@@ -99,3 +109,57 @@ def zbuduj_plan_dnia_agenta(
             )
         )
     return decyzje
+
+
+def zbuduj_harmonogram_przejazdow_agenta(
+    plan: PlanZajec,
+    dzien: str,
+    generator: random.Random,
+    bufor_wyjscia_przed_zajeciami_minuty: int = 15,
+    prog_powrotu_do_akademika_minuty: int = 120,
+) -> tuple[list[DecyzjaBlokuDnia], list[AkcjaDniaAgenta]]:
+    decyzje = zbuduj_plan_dnia_agenta(plan, dzien, generator)
+    bloki_realne = [d for d in decyzje if d.czy_agent_idzie]
+
+    akcje: list[AkcjaDniaAgenta] = []
+    if not bloki_realne:
+        return decyzje, akcje
+
+    pierwszy = bloki_realne[0]
+    akcje.append(
+        AkcjaDniaAgenta(
+            minuta=max(0, pierwszy.blok.minuta_startu - bufor_wyjscia_przed_zajeciami_minuty),
+            typ_akcji="wyjscie_z_akademika",
+            opis=f"Wyjście na blok: {pierwszy.blok.nazwa}",
+        )
+    )
+
+    for obecny, nastepny in zip(bloki_realne, bloki_realne[1:]):
+        przerwa = policz_przerwe_miedzy_blokami(obecny.blok, nastepny.blok)
+        if czy_przerwa_pozwala_na_powrot(przerwa, prog_minut=prog_powrotu_do_akademika_minuty):
+            akcje.append(
+                AkcjaDniaAgenta(
+                    minuta=obecny.blok.minuta_konca,
+                    typ_akcji="powrot_do_akademika",
+                    opis=f"Powrót po bloku: {obecny.blok.nazwa}",
+                )
+            )
+            akcje.append(
+                AkcjaDniaAgenta(
+                    minuta=max(0, nastepny.blok.minuta_startu - bufor_wyjscia_przed_zajeciami_minuty),
+                    typ_akcji="wyjscie_z_akademika",
+                    opis=f"Wyjście na blok: {nastepny.blok.nazwa}",
+                )
+            )
+
+    ostatni = bloki_realne[-1]
+    akcje.append(
+        AkcjaDniaAgenta(
+            minuta=ostatni.blok.minuta_konca,
+            typ_akcji="powrot_do_akademika",
+            opis=f"Powrót po ostatnim bloku: {ostatni.blok.nazwa}",
+        )
+    )
+
+    akcje = sorted(akcje, key=lambda a: (a.minuta, a.typ_akcji))
+    return decyzje, akcje
