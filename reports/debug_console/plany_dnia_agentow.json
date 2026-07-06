@@ -19,7 +19,7 @@
         "nazwa": "(PO) WSM [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.9489"
+        "powod": "wylosowano_brak_udzialu_0.5753"
       },
       {
         "dzien": "poniedzialek",
@@ -27,8 +27,8 @@
         "godzina_do": "14:45",
         "nazwa": "RCiRR [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.6491"
+        "czy_agent_idzie": true,
+        "powod": "wylosowano_udzial_0.4717"
       },
       {
         "dzien": "poniedzialek",
@@ -37,7 +37,7 @@
         "nazwa": "PK [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.2118"
+        "powod": "wylosowano_udzial_0.4921"
       }
     ],
     "harmonogram_dnia": [
@@ -56,10 +56,10 @@
         "czy_losowe": false
       },
       {
-        "minuta": 885,
-        "czas": "14:45",
+        "minuta": 780,
+        "czas": "13:00",
         "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Wyjście na blok: PK [wyklad]",
+        "opis": "Wyjście na blok: RCiRR [wyklad]",
         "czy_losowe": false
       },
       {
@@ -68,20 +68,6 @@
         "typ_akcji": "powrot_do_akademika",
         "opis": "Powrót po ostatnim bloku: PK [wyklad]",
         "czy_losowe": false
-      },
-      {
-        "minuta": 1054,
-        "czas": "17:34",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Losowe wyjście z akademika",
-        "czy_losowe": true
-      },
-      {
-        "minuta": 1136,
-        "czas": "18:56",
-        "typ_akcji": "powrot_do_akademika",
-        "opis": "Losowy powrót do akademika",
-        "czy_losowe": true
       }
     ],
     "nastepne_akcje": [
@@ -100,10 +86,10 @@
         "czy_losowe": false
       },
       {
-        "minuta": 885,
-        "czas": "14:45",
+        "minuta": 780,
+        "czas": "13:00",
         "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Wyjście na blok: PK [wyklad]",
+        "opis": "Wyjście na blok: RCiRR [wyklad]",
         "czy_losowe": false
       },
       {
@@ -112,13 +98,6 @@
         "typ_akcji": "powrot_do_akademika",
         "opis": "Powrót po ostatnim bloku: PK [wyklad]",
         "czy_losowe": false
-      },
-      {
-        "minuta": 1054,
-        "czas": "17:34",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Losowe wyjście z akademika",
-        "czy_losowe": true
       }
     ]
   },
@@ -142,7 +121,7 @@
         "nazwa": "(PO) WSM [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.2748"
+        "powod": "wylosowano_udzial_0.2227"
       },
       {
         "dzien": "poniedzialek",
@@ -150,8 +129,8 @@
         "godzina_do": "14:45",
         "nazwa": "RCiRR [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.0031"
+        "czy_agent_idzie": false,
+        "powod": "wylosowano_brak_udzialu_0.6550"
       },
       {
         "dzien": "poniedzialek",
@@ -160,25 +139,11 @@
         "nazwa": "PK [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.7145"
+        "powod": "wylosowano_brak_udzialu_0.8612"
       }
     ],
     "harmonogram_dnia": [
       {
-        "minuta": 503,
-        "czas": "08:23",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Losowe wyjście z akademika",
-        "czy_losowe": true
-      },
-      {
-        "minuta": 533,
-        "czas": "08:53",
-        "typ_akcji": "powrot_do_akademika",
-        "opis": "Losowy powrót do akademika",
-        "czy_losowe": true
-      },
-      {
         "minuta": 570,
         "czas": "09:30",
         "typ_akcji": "wyjscie_z_akademika",
@@ -186,43 +151,15 @@
         "czy_losowe": false
       },
       {
-        "minuta": 885,
-        "czas": "14:45",
+        "minuta": 780,
+        "czas": "13:00",
         "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po ostatnim bloku: RCiRR [wyklad]",
+        "opis": "Powrót po ostatnim bloku: (PO) WSM [wyklad]",
         "czy_losowe": false
-      },
-      {
-        "minuta": 1148,
-        "czas": "19:08",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Losowe wyjście z akademika",
-        "czy_losowe": true
-      },
-      {
-        "minuta": 1217,
-        "czas": "20:17",
-        "typ_akcji": "powrot_do_akademika",
-        "opis": "Losowy powrót do akademika",
-        "czy_losowe": true
       }
     ],
     "nastepne_akcje": [
       {
-        "minuta": 503,
-        "czas": "08:23",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Losowe wyjście z akademika",
-        "czy_losowe": true
-      },
-      {
-        "minuta": 533,
-        "czas": "08:53",
-        "typ_akcji": "powrot_do_akademika",
-        "opis": "Losowy powrót do akademika",
-        "czy_losowe": true
-      },
-      {
         "minuta": 570,
         "czas": "09:30",
         "typ_akcji": "wyjscie_z_akademika",
@@ -230,18 +167,11 @@
         "czy_losowe": false
       },
       {
-        "minuta": 885,
-        "czas": "14:45",
+        "minuta": 780,
+        "czas": "13:00",
         "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po ostatnim bloku: RCiRR [wyklad]",
+        "opis": "Powrót po ostatnim bloku: (PO) WSM [wyklad]",
         "czy_losowe": false
-      },
-      {
-        "minuta": 1148,
-        "czas": "19:08",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Losowe wyjście z akademika",
-        "czy_losowe": true
       }
     ]
   },
@@ -265,7 +195,7 @@
         "nazwa": "(PO) WSM [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.2622"
+        "powod": "wylosowano_udzial_0.4880"
       },
       {
         "dzien": "poniedzialek",
@@ -274,7 +204,7 @@
         "nazwa": "RCiRR [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.7593"
+        "powod": "wylosowano_brak_udzialu_0.6154"
       },
       {
         "dzien": "poniedzialek",
@@ -283,7 +213,7 @@
         "nazwa": "PK [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.5603"
+        "powod": "wylosowano_brak_udzialu_0.7342"
       }
     ],
     "harmonogram_dnia": [
@@ -339,7 +269,7 @@
         "nazwa": "(PO) WSM [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.2414"
+        "powod": "wylosowano_udzial_0.4810"
       },
       {
         "dzien": "poniedzialek",
@@ -347,8 +277,8 @@
         "godzina_do": "14:45",
         "nazwa": "RCiRR [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.6668"
+        "czy_agent_idzie": true,
+        "powod": "wylosowano_udzial_0.1085"
       },
       {
         "dzien": "poniedzialek",
@@ -356,8 +286,8 @@
         "godzina_do": "16:30",
         "nazwa": "PK [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.6629"
+        "czy_agent_idzie": true,
+        "powod": "wylosowano_udzial_0.2345"
       }
     ],
     "harmonogram_dnia": [
@@ -369,10 +299,10 @@
         "czy_losowe": false
       },
       {
-        "minuta": 780,
-        "czas": "13:00",
+        "minuta": 990,
+        "czas": "16:30",
         "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po ostatnim bloku: (PO) WSM [wyklad]",
+        "opis": "Powrót po ostatnim bloku: PK [wyklad]",
         "czy_losowe": false
       }
     ],
@@ -385,10 +315,10 @@
         "czy_losowe": false
       },
       {
-        "minuta": 780,
-        "czas": "13:00",
+        "minuta": 990,
+        "czas": "16:30",
         "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po ostatnim bloku: (PO) WSM [wyklad]",
+        "opis": "Powrót po ostatnim bloku: PK [wyklad]",
         "czy_losowe": false
       }
     ]
@@ -413,7 +343,7 @@
         "nazwa": "(PO) WSM [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.7533"
+        "powod": "wylosowano_brak_udzialu_0.7693"
       },
       {
         "dzien": "poniedzialek",
@@ -421,8 +351,8 @@
         "godzina_do": "14:45",
         "nazwa": "RCiRR [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.5496"
+        "czy_agent_idzie": true,
+        "powod": "wylosowano_udzial_0.0684"
       },
       {
         "dzien": "poniedzialek",
@@ -430,11 +360,25 @@
         "godzina_do": "16:30",
         "nazwa": "PK [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.2215"
+        "czy_agent_idzie": false,
+        "powod": "wylosowano_brak_udzialu_0.7939"
       }
     ],
     "harmonogram_dnia": [
+      {
+        "minuta": 513,
+        "czas": "08:33",
+        "typ_akcji": "wyjscie_z_akademika",
+        "opis": "Losowe wyjście z akademika",
+        "czy_losowe": true
+      },
+      {
+        "minuta": 548,
+        "czas": "09:08",
+        "typ_akcji": "powrot_do_akademika",
+        "opis": "Losowy powrót do akademika",
+        "czy_losowe": true
+      },
       {
         "minuta": 570,
         "czas": "09:30",
@@ -450,36 +394,50 @@
         "czy_losowe": false
       },
       {
-        "minuta": 800,
-        "czas": "13:20",
+        "minuta": 701,
+        "czas": "11:41",
         "typ_akcji": "wyjscie_z_akademika",
         "opis": "Losowe wyjście z akademika",
         "czy_losowe": true
       },
       {
-        "minuta": 858,
-        "czas": "14:18",
+        "minuta": 760,
+        "czas": "12:40",
         "typ_akcji": "powrot_do_akademika",
         "opis": "Losowy powrót do akademika",
         "czy_losowe": true
       },
       {
-        "minuta": 885,
-        "czas": "14:45",
+        "minuta": 780,
+        "czas": "13:00",
         "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Wyjście na blok: PK [wyklad]",
+        "opis": "Wyjście na blok: RCiRR [wyklad]",
         "czy_losowe": false
       },
       {
-        "minuta": 990,
-        "czas": "16:30",
+        "minuta": 885,
+        "czas": "14:45",
         "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po ostatnim bloku: PK [wyklad]",
+        "opis": "Powrót po ostatnim bloku: RCiRR [wyklad]",
         "czy_losowe": false
       }
     ],
     "nastepne_akcje": [
       {
+        "minuta": 513,
+        "czas": "08:33",
+        "typ_akcji": "wyjscie_z_akademika",
+        "opis": "Losowe wyjście z akademika",
+        "czy_losowe": true
+      },
+      {
+        "minuta": 548,
+        "czas": "09:08",
+        "typ_akcji": "powrot_do_akademika",
+        "opis": "Losowy powrót do akademika",
+        "czy_losowe": true
+      },
+      {
         "minuta": 570,
         "czas": "09:30",
         "typ_akcji": "wyjscie_z_akademika",
@@ -494,25 +452,11 @@
         "czy_losowe": false
       },
       {
-        "minuta": 800,
-        "czas": "13:20",
+        "minuta": 701,
+        "czas": "11:41",
         "typ_akcji": "wyjscie_z_akademika",
         "opis": "Losowe wyjście z akademika",
         "czy_losowe": true
-      },
-      {
-        "minuta": 858,
-        "czas": "14:18",
-        "typ_akcji": "powrot_do_akademika",
-        "opis": "Losowy powrót do akademika",
-        "czy_losowe": true
-      },
-      {
-        "minuta": 885,
-        "czas": "14:45",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Wyjście na blok: PK [wyklad]",
-        "czy_losowe": false
       }
     ]
   },
@@ -544,8 +488,8 @@
         "godzina_do": "14:45",
         "nazwa": "(PO) GP [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.9877"
+        "czy_agent_idzie": true,
+        "powod": "wylosowano_udzial_0.4516"
       },
       {
         "dzien": "poniedzialek",
@@ -566,20 +510,6 @@
         "czy_losowe": false
       },
       {
-        "minuta": 780,
-        "czas": "13:00",
-        "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po bloku: (PO) GP pr1",
-        "czy_losowe": false
-      },
-      {
-        "minuta": 885,
-        "czas": "14:45",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Wyjście na blok: (PO) GP pr2",
-        "czy_losowe": false
-      },
-      {
         "minuta": 990,
         "czas": "16:30",
         "typ_akcji": "powrot_do_akademika",
@@ -593,20 +523,6 @@
         "czas": "09:30",
         "typ_akcji": "wyjscie_z_akademika",
         "opis": "Wyjście na blok: (PO) SPiWP cw1",
-        "czy_losowe": false
-      },
-      {
-        "minuta": 780,
-        "czas": "13:00",
-        "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po bloku: (PO) GP pr1",
-        "czy_losowe": false
-      },
-      {
-        "minuta": 885,
-        "czas": "14:45",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Wyjście na blok: (PO) GP pr2",
         "czy_losowe": false
       },
       {
@@ -647,7 +563,7 @@
         "nazwa": "(PO) GP [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.0755"
+        "powod": "wylosowano_udzial_0.1750"
       },
       {
         "dzien": "poniedzialek",
@@ -673,6 +589,20 @@
         "typ_akcji": "powrot_do_akademika",
         "opis": "Powrót po ostatnim bloku: (PO) GP pr2",
         "czy_losowe": false
+      },
+      {
+        "minuta": 1013,
+        "czas": "16:53",
+        "typ_akcji": "wyjscie_z_akademika",
+        "opis": "Losowe wyjście z akademika",
+        "czy_losowe": true
+      },
+      {
+        "minuta": 1112,
+        "czas": "18:32",
+        "typ_akcji": "powrot_do_akademika",
+        "opis": "Losowy powrót do akademika",
+        "czy_losowe": true
       }
     ],
     "nastepne_akcje": [
@@ -689,6 +619,20 @@
         "typ_akcji": "powrot_do_akademika",
         "opis": "Powrót po ostatnim bloku: (PO) GP pr2",
         "czy_losowe": false
+      },
+      {
+        "minuta": 1013,
+        "czas": "16:53",
+        "typ_akcji": "wyjscie_z_akademika",
+        "opis": "Losowe wyjście z akademika",
+        "czy_losowe": true
+      },
+      {
+        "minuta": 1112,
+        "czas": "18:32",
+        "typ_akcji": "powrot_do_akademika",
+        "opis": "Losowy powrót do akademika",
+        "czy_losowe": true
       }
     ]
   },
@@ -721,7 +665,7 @@
         "nazwa": "(PO) GP [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.0660"
+        "powod": "wylosowano_udzial_0.3190"
       },
       {
         "dzien": "poniedzialek",
@@ -794,8 +738,8 @@
         "godzina_do": "14:45",
         "nazwa": "(PO) GP [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.2298"
+        "czy_agent_idzie": false,
+        "powod": "wylosowano_brak_udzialu_0.7556"
       },
       {
         "dzien": "poniedzialek",
@@ -816,6 +760,20 @@
         "czy_losowe": false
       },
       {
+        "minuta": 780,
+        "czas": "13:00",
+        "typ_akcji": "powrot_do_akademika",
+        "opis": "Powrót po bloku: (PO) GP pr1",
+        "czy_losowe": false
+      },
+      {
+        "minuta": 885,
+        "czas": "14:45",
+        "typ_akcji": "wyjscie_z_akademika",
+        "opis": "Wyjście na blok: (PO) GP pr2",
+        "czy_losowe": false
+      },
+      {
         "minuta": 990,
         "czas": "16:30",
         "typ_akcji": "powrot_do_akademika",
@@ -829,6 +787,20 @@
         "czas": "09:30",
         "typ_akcji": "wyjscie_z_akademika",
         "opis": "Wyjście na blok: (PO) SPiWP cw1",
+        "czy_losowe": false
+      },
+      {
+        "minuta": 780,
+        "czas": "13:00",
+        "typ_akcji": "powrot_do_akademika",
+        "opis": "Powrót po bloku: (PO) GP pr1",
+        "czy_losowe": false
+      },
+      {
+        "minuta": 885,
+        "czas": "14:45",
+        "typ_akcji": "wyjscie_z_akademika",
+        "opis": "Wyjście na blok: (PO) GP pr2",
         "czy_losowe": false
       },
       {
@@ -859,8 +831,8 @@
         "godzina_do": "13:00",
         "nazwa": "(PO) WSM [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.7150"
+        "czy_agent_idzie": true,
+        "powod": "wylosowano_udzial_0.0121"
       },
       {
         "dzien": "poniedzialek",
@@ -868,8 +840,8 @@
         "godzina_do": "14:45",
         "nazwa": "RCiRR [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.9035"
+        "czy_agent_idzie": true,
+        "powod": "wylosowano_udzial_0.2257"
       },
       {
         "dzien": "poniedzialek",
@@ -878,7 +850,7 @@
         "nazwa": "PK [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.5720"
+        "powod": "wylosowano_brak_udzialu_0.9614"
       }
     ],
     "harmonogram_dnia": [
@@ -890,10 +862,10 @@
         "czy_losowe": false
       },
       {
-        "minuta": 675,
-        "czas": "11:15",
+        "minuta": 885,
+        "czas": "14:45",
         "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po ostatnim bloku: (PO) SPiWP cw1",
+        "opis": "Powrót po ostatnim bloku: RCiRR [wyklad]",
         "czy_losowe": false
       }
     ],
@@ -906,10 +878,10 @@
         "czy_losowe": false
       },
       {
-        "minuta": 675,
-        "czas": "11:15",
+        "minuta": 885,
+        "czas": "14:45",
         "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po ostatnim bloku: (PO) SPiWP cw1",
+        "opis": "Powrót po ostatnim bloku: RCiRR [wyklad]",
         "czy_losowe": false
       }
     ]
@@ -933,8 +905,8 @@
         "godzina_do": "13:00",
         "nazwa": "(PO) WSM [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": false,
-        "powod": "wylosowano_brak_udzialu_0.9845"
+        "czy_agent_idzie": true,
+        "powod": "wylosowano_udzial_0.0982"
       },
       {
         "dzien": "poniedzialek",
@@ -942,8 +914,8 @@
         "godzina_do": "14:45",
         "nazwa": "RCiRR [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.4989"
+        "czy_agent_idzie": false,
+        "powod": "wylosowano_brak_udzialu_0.6864"
       },
       {
         "dzien": "poniedzialek",
@@ -951,8 +923,8 @@
         "godzina_do": "16:30",
         "nazwa": "PK [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.4708"
+        "czy_agent_idzie": false,
+        "powod": "wylosowano_brak_udzialu_0.9368"
       }
     ],
     "harmonogram_dnia": [
@@ -964,24 +936,10 @@
         "czy_losowe": false
       },
       {
-        "minuta": 675,
-        "czas": "11:15",
-        "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po bloku: (PO) SPiWP cw1",
-        "czy_losowe": false
-      },
-      {
         "minuta": 780,
         "czas": "13:00",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Wyjście na blok: RCiRR [wyklad]",
-        "czy_losowe": false
-      },
-      {
-        "minuta": 990,
-        "czas": "16:30",
         "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po ostatnim bloku: PK [wyklad]",
+        "opis": "Powrót po ostatnim bloku: (PO) WSM [wyklad]",
         "czy_losowe": false
       }
     ],
@@ -994,24 +952,10 @@
         "czy_losowe": false
       },
       {
-        "minuta": 675,
-        "czas": "11:15",
-        "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po bloku: (PO) SPiWP cw1",
-        "czy_losowe": false
-      },
-      {
         "minuta": 780,
         "czas": "13:00",
-        "typ_akcji": "wyjscie_z_akademika",
-        "opis": "Wyjście na blok: RCiRR [wyklad]",
-        "czy_losowe": false
-      },
-      {
-        "minuta": 990,
-        "czas": "16:30",
         "typ_akcji": "powrot_do_akademika",
-        "opis": "Powrót po ostatnim bloku: PK [wyklad]",
+        "opis": "Powrót po ostatnim bloku: (PO) WSM [wyklad]",
         "czy_losowe": false
       }
     ]
@@ -1035,8 +979,8 @@
         "godzina_do": "13:00",
         "nazwa": "(PO) WSM [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
-        "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.3261"
+        "czy_agent_idzie": false,
+        "powod": "wylosowano_brak_udzialu_0.5632"
       },
       {
         "dzien": "poniedzialek",
@@ -1045,7 +989,7 @@
         "nazwa": "RCiRR [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.4772"
+        "powod": "wylosowano_udzial_0.1077"
       },
       {
         "dzien": "poniedzialek",
@@ -1054,7 +998,7 @@
         "nazwa": "PK [wyklad]",
         "wspolczynnik_uczestnictwa": 0.5,
         "czy_agent_idzie": true,
-        "powod": "wylosowano_udzial_0.2856"
+        "powod": "wylosowano_udzial_0.4267"
       }
     ],
     "harmonogram_dnia": [
@@ -1063,6 +1007,20 @@
         "czas": "09:30",
         "typ_akcji": "wyjscie_z_akademika",
         "opis": "Wyjście na blok: (PO) SPiWP cw1",
+        "czy_losowe": false
+      },
+      {
+        "minuta": 675,
+        "czas": "11:15",
+        "typ_akcji": "powrot_do_akademika",
+        "opis": "Powrót po bloku: (PO) SPiWP cw1",
+        "czy_losowe": false
+      },
+      {
+        "minuta": 780,
+        "czas": "13:00",
+        "typ_akcji": "wyjscie_z_akademika",
+        "opis": "Wyjście na blok: RCiRR [wyklad]",
         "czy_losowe": false
       },
       {
@@ -1079,6 +1037,20 @@
         "czas": "09:30",
         "typ_akcji": "wyjscie_z_akademika",
         "opis": "Wyjście na blok: (PO) SPiWP cw1",
+        "czy_losowe": false
+      },
+      {
+        "minuta": 675,
+        "czas": "11:15",
+        "typ_akcji": "powrot_do_akademika",
+        "opis": "Powrót po bloku: (PO) SPiWP cw1",
+        "czy_losowe": false
+      },
+      {
+        "minuta": 780,
+        "czas": "13:00",
+        "typ_akcji": "wyjscie_z_akademika",
+        "opis": "Wyjście na blok: RCiRR [wyklad]",
         "czy_losowe": false
       },
       {
