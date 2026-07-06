@@ -43,10 +43,11 @@ def renderuj_dashboard(
     snapshot_menedzera: dict,
     zdarzenia: list[dict],
 ) -> str:
-    szer = shutil.get_terminal_size((160, 40)).columns
+    szer = shutil.get_terminal_size((180, 55)).columns
     panel_w = max(60, (szer - 6) // 2)
     panel_h_top = 12
-    panel_h_bottom = 16
+    panel_h_mid = 18
+    panel_h_bottom = 14
 
     winda_linie = [
         f"Tick: {czas_info['tick']}",
@@ -68,12 +69,13 @@ def renderuj_dashboard(
             gora = len(kolejki[pietro]["gora"])
             dol = len(kolejki[pietro]["dol"])
             if gora or dol:
-                kolejki_linie.append(f"P{pietro:02d} | ↑ {gora} | ↓ {dol}")
+                kolejki_linie.append(f"P{int(pietro):02d} | ↑ {gora} | ↓ {dol}")
         if not kolejki_linie:
             kolejki_linie.append("Brak oczekujących.")
 
     stany = snapshot_menedzera["stany_agentow"]
     stats = snapshot_menedzera["statystyki"]
+    metryki = snapshot_menedzera["metryki_zbiorcze"]
     agenci_linie = [
         f"Liczba agentów: {snapshot_menedzera['liczba_agentow']}",
         f"W windzie: {snapshot_menedzera['liczba_agentow_w_windzie']}",
@@ -85,14 +87,19 @@ def renderuj_dashboard(
     agenci_linie.extend([
         "",
         "Statystyki:",
-        f"- wezwania systemowe: {stats['liczba_wezwan_systemowych']}",
+        f"- wezwania ludzkie (agenci): {stats['liczba_wezwan_systemowych']}",
         f"- wejścia do windy: {stats['liczba_wejsc_do_windy']}",
         f"- wyjścia z windy: {stats['liczba_wyjsc_z_windy']}",
         f"- ghost calle: {stats['liczba_ghost_calli']}",
         f"- schody: {stats['liczba_rezygnacji_schody']}",
+        "",
+        "Metryki zbiorcze:",
+        f"- przejazdy windą: {metryki['liczba_przejazdow_winda']}",
+        f"- śr. czekanie tick: {metryki['sredni_czas_oczekiwania_tick']}",
+        f"- śr. przejazd tick: {metryki['sredni_czas_przejazdu_tick']}",
     ])
 
-    agent_lines = []
+    akcje_linie = []
     agenci = list(snapshot_menedzera["agenci"].values())
     agenci = sorted(
         agenci,
@@ -102,16 +109,16 @@ def renderuj_dashboard(
             a["id_agenta"],
         ),
     )
-    for agent in agenci[:12]:
-        agent_lines.append(
-            f"{agent['id_agenta']} | P{agent['aktualne_pietro']} | "
-            f"{agent['stan']} | q={agent['pozycja_w_kolejce']}"
-        )
-    if not agent_lines:
-        agent_lines.append("Brak agentów.")
+    for agent in agenci[:8]:
+        akcje_linie.append(f"{agent['id_agenta']} | {agent['stan']} | P{agent['aktualne_pietro']}")
+        for akcja in agent.get("nastepne_akcje", [])[:2]:
+            znacznik = " [L]" if akcja.get("czy_losowe") else ""
+            akcje_linie.append(f"  -> {akcja['czas']} | {akcja['typ_akcji']}{znacznik}")
+    if not akcje_linie:
+        akcje_linie.append("Brak agentów.")
 
     event_lines = []
-    for event in zdarzenia[-12:]:
+    for event in zdarzenia[-10:]:
         typ = event["typ"]
         payload = event["payload"]
         if "agent" in payload:
@@ -126,9 +133,10 @@ def renderuj_dashboard(
         _panel("Winda i czas", winda_linie, panel_w, panel_h_top),
         _panel("Kolejki", kolejki_linie, panel_w, panel_h_top),
     )
-    bottom = _polacz_poziomo(
-        _panel("Agenci i statystyki", agenci_linie, panel_w, panel_h_bottom),
-        _panel("Agenci / zdarzenia", agent_lines + ["", "Zdarzenia:"] + event_lines, panel_w, panel_h_bottom),
+    middle = _polacz_poziomo(
+        _panel("Agenci / statystyki / metryki", agenci_linie, panel_w, panel_h_mid),
+        _panel("Najbliższe akcje agentów", akcje_linie, panel_w, panel_h_mid),
     )
+    bottom = _panel("Zdarzenia systemu", event_lines, panel_w * 2 + 2, panel_h_bottom)
 
-    return "\n".join(top + [""] + bottom)
+    return "\n".join(top + [""] + middle + [""] + bottom)

@@ -40,7 +40,7 @@ class MenedzerAgentow:
         self._tick_ostatniej_obslugi_przystanku: int | None = None
         self._ostatni_tick_kroku: int = 0
 
-        self.log_zdarzen = deque(maxlen=200)
+        self.log_zdarzen = deque(maxlen=5000)
         self.statystyki = {
             "liczba_wezwan_systemowych": 0,
             "liczba_wejsc_do_windy": 0,
@@ -75,8 +75,40 @@ class MenedzerAgentow:
         self._dzien_aktywny = nazwa_dnia
         for agent in self.agenci.values():
             agent.przygotuj_dzien(nazwa_dnia)
-
         self._zaloguj("przygotowano_dzien", {"dzien": nazwa_dnia})
+
+    def plan_dnia_agentow(self) -> dict:
+        return {
+            agent_id: agent.serializuj_plan_dnia()
+            for agent_id, agent in sorted(self.agenci.items())
+        }
+
+    def metryki_agentow(self) -> dict:
+        return {
+            agent_id: {
+                "statystyki": agent.statystyki_przejazdow(),
+                "historia_przejazdow": list(agent.historia_przejazdow),
+            }
+            for agent_id, agent in sorted(self.agenci.items())
+        }
+
+    def _agreguj_metryki(self) -> dict:
+        rekordy = []
+        for agent in self.agenci.values():
+            rekordy.extend([r for r in agent.historia_przejazdow if r["typ_zakonczenia"] == "winda"])
+
+        def srednia(pole: str):
+            wartosci = [r[pole] for r in rekordy if r.get(pole) is not None]
+            if not wartosci:
+                return None
+            return round(sum(wartosci) / len(wartosci), 3)
+
+        return {
+            "liczba_przejazdow_winda": len(rekordy),
+            "sredni_czas_oczekiwania_tick": srednia("czas_oczekiwania_tick"),
+            "sredni_czas_przejazdu_tick": srednia("czas_przejazdu_tick"),
+            "sredni_czas_calkowity_tick": srednia("czas_calkowity_tick"),
+        }
 
     def krok(self, czas_info: dict) -> None:
         nazwa_dnia = czas_info["nazwa_dnia"]
@@ -92,7 +124,7 @@ class MenedzerAgentow:
             self._obsluz_akcje_z_harmonogramu(minuta_dnia, tick)
 
         self._obsluz_rezygnacje_na_schody(tick)
-        self._obsluz_schody()
+        self._obsluz_schody(tick)
         self._obsluz_przystanek_windy(tick)
 
     def _obsluz_akcje_z_harmonogramu(self, minuta_dnia: int, tick: int) -> None:
@@ -108,8 +140,12 @@ class MenedzerAgentow:
                         "agent": agent.id_agenta,
                         "akcja": akcja.typ_akcji,
                         "opis": akcja.opis,
+                        "czy_losowe": akcja.czy_losowe,
                     })
-                    self._dolacz_agenta_do_kolejki(agent, "dol", tick, self.ustawienia.pietro_parteru)
+                    self._dolacz_agenta_do_kolejki(
+                        agent, "dol", tick, self.ustawienia.pietro_parteru,
+                        typ_akcji=akcja.typ_akcji, czy_losowe=akcja.czy_losowe,
+                    )
 
                 elif akcja.typ_akcji == "powrot_do_akademika" and agent.stan == StanAgenta.POZA_AKADEMIKIEM:
                     agent.aktualne_pietro = self.ustawienia.pietro_parteru
@@ -118,18 +154,30 @@ class MenedzerAgentow:
                         "agent": agent.id_agenta,
                         "akcja": akcja.typ_akcji,
                         "opis": akcja.opis,
+                        "czy_losowe": akcja.czy_losowe,
                     })
-                    self._dolacz_agenta_do_kolejki(agent, "gora", tick, agent.pietro_domowe)
+                    self._dolacz_agenta_do_kolejki(
+                        agent, "gora", tick, agent.pietro_domowe,
+                        typ_akcji=akcja.typ_akcji, czy_losowe=akcja.czy_losowe,
+                    )
 
-    def _dolacz_agenta_do_kolejki(self, agent: AgentStudenta, kierunek: str, tick: int, cel_pietro: int) -> None:
+    def _dolacz_agenta_do_kolejki(self, agent: AgentStudenta, kierunek: str, tick: int, cel_pietro: int, typ_akcji: str | None, czy_losowe: bool) -> None:
         pietro = agent.aktualne_pietro if agent.aktualne_pietro is not None else agent.pietro_domowe
         pozycja = self.kolejki.dolacz(agent.id_agenta, pietro, kierunek)
-        agent.dolacz_do_kolejki(kierunek=kierunek, tick=tick, pozycja=pozycja, cel_pietro=cel_pietro)
+        agent.dolacz_do_kolejki(
+            kierunek=kierunek,
+            tick=tick,
+            pozycja=pozycja,
+            cel_pietro=cel_pietro,
+            typ_akcji=typ_akcji,
+            czy_losowe=czy_losowe,
+        )
 
+        # To są symulowane naciśnięcia prawdziwych użytkowników, więc źródło zostawiamy jako CZŁOWIEK.
         if kierunek == "dol":
-            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.DOL, ZrodloZgloszenia.SYSTEM)
+            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.DOL, ZrodloZgloszenia.CZLOWIEK)
         else:
-            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.SYSTEM)
+            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
 
         self.statystyki["liczba_wezwan_systemowych"] += 1
         self._zaloguj("dolaczenie_do_kolejki", {
@@ -139,6 +187,9 @@ class MenedzerAgentow:
             "kierunek": kierunek,
             "pozycja": pozycja,
             "cel_pietro": cel_pietro,
+            "typ_akcji": typ_akcji,
+            "czy_losowe": czy_losowe,
+            "zrodlo_w_systemie_windy": "CZLOWIEK",
         })
 
     def _obsluz_rezygnacje_na_schody(self, tick: int) -> None:
@@ -163,16 +214,17 @@ class MenedzerAgentow:
                     "kierunek": kierunek,
                 })
 
-    def _obsluz_schody(self) -> None:
+    def _obsluz_schody(self, tick: int) -> None:
         for agent in self.agenci.values():
             if agent.stan in {StanAgenta.IDZIE_SCHODAMI_W_DOL, StanAgenta.IDZIE_SCHODAMI_W_GORE}:
                 poprzedni = agent.stan.name
-                agent.zakoncz_przejscie_schodami()
+                agent.zakoncz_przejscie_schodami(tick)
                 self._zaloguj("zakonczono_schody", {
                     "agent": agent.id_agenta,
                     "stan_przed": poprzedni,
                     "stan_po": agent.stan.name,
                     "pietro": agent.aktualne_pietro,
+                    "tick": tick,
                 })
 
     def _obsluz_przystanek_windy(self, tick: int) -> None:
@@ -185,10 +237,10 @@ class MenedzerAgentow:
         self._tick_ostatniej_obslugi_przystanku = tick
         pietro = self.silnik_windy.aktualne_pietro
 
-        self._wypusc_agentow_z_windy(pietro)
-        self._wpusc_agentow_do_windy(pietro)
+        self._wypusc_agentow_z_windy(pietro, tick)
+        self._wpusc_agentow_do_windy(pietro, tick)
 
-    def _wypusc_agentow_z_windy(self, pietro: int) -> None:
+    def _wypusc_agentow_z_windy(self, pietro: int, tick: int) -> None:
         do_wypuszczenia = []
         for agent_id in self.agenci_w_windzie:
             agent = self.agenci[agent_id]
@@ -197,17 +249,17 @@ class MenedzerAgentow:
 
         for agent_id in do_wypuszczenia:
             agent = self.agenci[agent_id]
-            agent.zakoncz_przejazd(pietro)
+            agent.zakoncz_przejazd(pietro, tick)
             self.agenci_w_windzie.remove(agent_id)
             self.silnik_windy.obciazenie = max(0, self.silnik_windy.obciazenie - 1)
             self.statystyki["liczba_wyjsc_z_windy"] += 1
             self._zaloguj("wyjscie_z_windy", {
-                "tick": self._ostatni_tick_kroku,
+                "tick": tick,
                 "agent": agent_id,
                 "pietro": pietro,
             })
 
-    def _wpusc_agentow_do_windy(self, pietro: int) -> None:
+    def _wpusc_agentow_do_windy(self, pietro: int, tick: int) -> None:
         wolne_miejsca = self.silnik_windy.maks_pojemnosc - self.silnik_windy.obciazenie
         if wolne_miejsca <= 0:
             return
@@ -222,24 +274,25 @@ class MenedzerAgentow:
         for agent_id in kandydaci:
             agent = self.agenci[agent_id]
             self.kolejki.usun(agent_id, pietro, kierunek)
-            agent.rozpocznij_przejazd_winda()
+            agent.rozpocznij_przejazd_winda(tick)
             self.agenci_w_windzie.append(agent_id)
             self.silnik_windy.obciazenie += 1
             self.statystyki["liczba_wejsc_do_windy"] += 1
 
             if kierunek == "gora":
-                self.silnik_windy.dodaj_wybor_z_kabiny_teraz(agent.pietro_domowe, ZrodloZgloszenia.SYSTEM)
+                self.silnik_windy.dodaj_wybor_z_kabiny_teraz(agent.pietro_domowe, ZrodloZgloszenia.CZLOWIEK)
             else:
-                self.silnik_windy.dodaj_wybor_z_kabiny_teraz(self.ustawienia.pietro_parteru, ZrodloZgloszenia.SYSTEM)
+                self.silnik_windy.dodaj_wybor_z_kabiny_teraz(self.ustawienia.pietro_parteru, ZrodloZgloszenia.CZLOWIEK)
 
             self._zaloguj("wejscie_do_windy", {
-                "tick": self._ostatni_tick_kroku,
+                "tick": tick,
                 "agent": agent_id,
                 "pietro": pietro,
                 "kierunek": kierunek,
                 "cel": agent.cel_pietro if agent.cel_pietro is not None else (
                     agent.pietro_domowe if kierunek == "gora" else self.ustawienia.pietro_parteru
                 ),
+                "zrodlo_w_systemie_windy": "CZLOWIEK",
             })
 
         self._przelicz_pozycje_w_kolejce(pietro, kierunek)
@@ -269,5 +322,6 @@ class MenedzerAgentow:
             "kolejki": self.kolejki.snapshot(),
             "stany_agentow": licznik_stanow,
             "statystyki": dict(self.statystyki),
+            "metryki_zbiorcze": self._agreguj_metryki(),
             "agenci": {agent_id: agent.snapshot() for agent_id, agent in self.agenci.items()},
         }

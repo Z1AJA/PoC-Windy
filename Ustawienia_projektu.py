@@ -20,11 +20,34 @@ class UstawieniaProjektu:
     limit_prawdopodobienstwa_schody_w_dol: float = 0.35
     limit_prawdopodobienstwa_schody_w_gore: float = 0.05
 
+    prawdopodobienstwo_losowego_cyklu_dnia: float = 0.25
+    minimalna_liczba_losowych_cykli: int = 1
+    maksymalna_liczba_losowych_cykli: int = 2
+    min_czas_poza_akademikiem_minuty: int = 30
+    max_czas_poza_akademikiem_minuty: int = 120
+    najwczesniejsza_minuta_losowych_akcji: int = 8 * 60
+    najpozniejsza_minuta_losowych_akcji: int = 22 * 60
+    minimalny_odstep_od_innych_akcji_minuty: int = 20
+
     def __post_init__(self) -> None:
         if self.bufor_wyjscia_przed_zajeciami_minuty < 0:
             raise ValueError("bufor_wyjscia_przed_zajeciami_minuty nie może być ujemny")
         if self.prog_powrotu_do_akademika_minuty < 0:
             raise ValueError("prog_powrotu_do_akademika_minuty nie może być ujemny")
+        if not (0.0 <= self.prawdopodobienstwo_losowego_cyklu_dnia <= 1.0):
+            raise ValueError("prawdopodobienstwo_losowego_cyklu_dnia musi być w zakresie 0..1")
+        if self.minimalna_liczba_losowych_cykli < 0:
+            raise ValueError("minimalna_liczba_losowych_cykli nie może być ujemna")
+        if self.maksymalna_liczba_losowych_cykli < self.minimalna_liczba_losowych_cykli:
+            raise ValueError("maksymalna_liczba_losowych_cykli nie może być mniejsza od minimalnej")
+        if self.min_czas_poza_akademikiem_minuty <= 0:
+            raise ValueError("min_czas_poza_akademikiem_minuty musi być > 0")
+        if self.max_czas_poza_akademikiem_minuty < self.min_czas_poza_akademikiem_minuty:
+            raise ValueError("max_czas_poza_akademikiem_minuty nie może być mniejszy od minimalnego")
+        if self.najpozniejsza_minuta_losowych_akcji <= self.najwczesniejsza_minuta_losowych_akcji:
+            raise ValueError("okno losowych akcji jest niepoprawne")
+        if self.minimalny_odstep_od_innych_akcji_minuty < 0:
+            raise ValueError("minimalny_odstep_od_innych_akcji_minuty nie może być ujemny")
 
         for nazwa in [
             "bazowe_a_schody_w_dol",

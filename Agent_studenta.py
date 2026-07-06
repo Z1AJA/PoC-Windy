@@ -39,9 +39,16 @@ class AgentStudenta:
     pozycja_w_kolejce: int | None = None
     kierunek_kolejki: str | None = None
     tick_wejscia_do_kolejki: int | None = None
+    tick_rozpoczecia_biezacego_oczekiwania: int | None = None
+    tick_wejscia_do_windy: int | None = None
+    pietro_startu_biezacego_przejazdu: int | None = None
+    cel_biezacego_przejazdu: int | None = None
+    typ_biezacej_akcji: str | None = None
+    czy_biezaca_akcja_losowa: bool = False
 
     liczba_ghost_calli: int = 0
     liczba_rezygnacji_na_schody: int = 0
+    historia_przejazdow: list[dict] = field(default_factory=list)
 
     _generator: random.Random = field(init=False, repr=False)
     _aktualny_tick_pomocniczy: int = field(default=0, init=False, repr=False)
@@ -82,12 +89,21 @@ class AgentStudenta:
             self._generator,
             bufor_wyjscia_przed_zajeciami_minuty=self.ustawienia.bufor_wyjscia_przed_zajeciami_minuty,
             prog_powrotu_do_akademika_minuty=self.ustawienia.prog_powrotu_do_akademika_minuty,
+            prawdopodobienstwo_losowego_cyklu_dnia=self.ustawienia.prawdopodobienstwo_losowego_cyklu_dnia,
+            minimalna_liczba_losowych_cykli=self.ustawienia.minimalna_liczba_losowych_cykli,
+            maksymalna_liczba_losowych_cykli=self.ustawienia.maksymalna_liczba_losowych_cykli,
+            min_czas_poza_akademikiem_minuty=self.ustawienia.min_czas_poza_akademikiem_minuty,
+            max_czas_poza_akademikiem_minuty=self.ustawienia.max_czas_poza_akademikiem_minuty,
+            najwczesniejsza_minuta_losowych_akcji=self.ustawienia.najwczesniejsza_minuta_losowych_akcji,
+            najpozniejsza_minuta_losowych_akcji=self.ustawienia.najpozniejsza_minuta_losowych_akcji,
+            minimalny_odstep_od_innych_akcji_minuty=self.ustawienia.minimalny_odstep_od_innych_akcji_minuty,
         )
         self.indeks_nastepnej_akcji = 0
         self._zaloguj("przygotowano_dzien", {
             "dzien": dzien,
             "liczba_blokow": len(self.decyzje_dnia),
             "liczba_akcji": len(self.harmonogram_dnia),
+            "liczba_akcji_losowych": sum(1 for a in self.harmonogram_dnia if a.czy_losowe),
         })
 
     def pobierz_akcje_do_wykonania(self, minuta_dnia: int) -> list[AkcjaDniaAgenta]:
@@ -100,12 +116,26 @@ class AgentStudenta:
             self.indeks_nastepnej_akcji += 1
         return akcje
 
+    def nastepne_akcje(self, limit: int = 3) -> list[dict]:
+        wynik = []
+        for akcja in self.harmonogram_dnia[self.indeks_nastepnej_akcji:self.indeks_nastepnej_akcji + limit]:
+            wynik.append({
+                "minuta": akcja.minuta,
+                "czas": akcja.minuta_hhmm(),
+                "typ_akcji": akcja.typ_akcji,
+                "opis": akcja.opis,
+                "czy_losowe": akcja.czy_losowe,
+            })
+        return wynik
+
     def dolacz_do_kolejki(
         self,
         kierunek: str,
         tick: int,
         pozycja: int,
         cel_pietro: int,
+        typ_akcji: str | None = None,
+        czy_losowe: bool = False,
     ) -> None:
         if kierunek not in {"dol", "gora"}:
             raise ValueError("kierunek musi być równy 'dol' albo 'gora'")
@@ -113,7 +143,12 @@ class AgentStudenta:
         self.pozycja_w_kolejce = pozycja
         self.kierunek_kolejki = kierunek
         self.tick_wejscia_do_kolejki = tick
+        self.tick_rozpoczecia_biezacego_oczekiwania = tick
         self.cel_pietro = cel_pietro
+        self.pietro_startu_biezacego_przejazdu = self.aktualne_pietro
+        self.cel_biezacego_przejazdu = cel_pietro
+        self.typ_biezacej_akcji = typ_akcji
+        self.czy_biezaca_akcja_losowa = czy_losowe
 
         if kierunek == "dol":
             self.stan = StanAgenta.CZEKA_NA_WINDE_W_DOL
@@ -125,6 +160,8 @@ class AgentStudenta:
             "tick": tick,
             "pozycja": pozycja,
             "cel_pietro": cel_pietro,
+            "typ_akcji": typ_akcji,
+            "czy_losowe": czy_losowe,
         })
 
     def zaktualizuj_pozycje_w_kolejce(self, pozycja: int | None) -> None:
@@ -177,25 +214,59 @@ class AgentStudenta:
 
         return False
 
-    def zakoncz_przejscie_schodami(self) -> None:
+    def zakoncz_przejscie_schodami(self, tick: int) -> None:
+        oczekiwanie = None
+        if self.tick_rozpoczecia_biezacego_oczekiwania is not None:
+            oczekiwanie = tick - self.tick_rozpoczecia_biezacego_oczekiwania
+
         if self.stan == StanAgenta.IDZIE_SCHODAMI_W_DOL:
             self.aktualne_pietro = self.ustawienia.pietro_parteru
             self.stan = StanAgenta.POZA_AKADEMIKIEM
         elif self.stan == StanAgenta.IDZIE_SCHODAMI_W_GORE:
             self.aktualne_pietro = self.pietro_domowe
             self.stan = StanAgenta.W_AKADEMIKU
+
+        self.historia_przejazdow.append({
+            "typ_zakonczenia": "schody",
+            "tick_start_oczekiwania": self.tick_rozpoczecia_biezacego_oczekiwania,
+            "tick_koniec": tick,
+            "czas_oczekiwania_tick": oczekiwanie,
+            "czas_przejazdu_tick": None,
+            "czas_calkowity_tick": oczekiwanie,
+            "pietro_startu": self.pietro_startu_biezacego_przejazdu,
+            "pietro_docelowe": self.cel_biezacego_przejazdu,
+            "typ_akcji": self.typ_biezacej_akcji,
+            "czy_losowe": self.czy_biezaca_akcja_losowa,
+        })
+
         self._zaloguj("zakonczono_schody", {
             "stan_po": self.stan.name,
             "aktualne_pietro": self.aktualne_pietro,
+            "tick": tick,
         })
 
-    def rozpocznij_przejazd_winda(self) -> None:
+        self._wyczysc_biezaca_sciezke()
+
+    def rozpocznij_przejazd_winda(self, tick: int) -> None:
+        self.tick_wejscia_do_windy = tick
         self.stan = StanAgenta.JEDZIE_WINDA
         self._zaloguj("rozpoczecie_przejazdu_winda", {
             "cel_pietro": self.cel_pietro,
+            "tick": tick,
         })
 
-    def zakoncz_przejazd(self, pietro_docelowe: int) -> None:
+    def zakoncz_przejazd(self, pietro_docelowe: int, tick: int) -> None:
+        czas_oczekiwania = None
+        czas_przejazdu = None
+        czas_calkowity = None
+
+        if self.tick_rozpoczecia_biezacego_oczekiwania is not None:
+            czas_calkowity = tick - self.tick_rozpoczecia_biezacego_oczekiwania
+        if self.tick_rozpoczecia_biezacego_oczekiwania is not None and self.tick_wejscia_do_windy is not None:
+            czas_oczekiwania = self.tick_wejscia_do_windy - self.tick_rozpoczecia_biezacego_oczekiwania
+        if self.tick_wejscia_do_windy is not None:
+            czas_przejazdu = tick - self.tick_wejscia_do_windy
+
         self.aktualne_pietro = pietro_docelowe
         self.cel_pietro = None
         self.opusc_kolejke()
@@ -207,10 +278,77 @@ class AgentStudenta:
         else:
             self.stan = StanAgenta.W_AKADEMIKU
 
+        self.historia_przejazdow.append({
+            "typ_zakonczenia": "winda",
+            "tick_start_oczekiwania": self.tick_rozpoczecia_biezacego_oczekiwania,
+            "tick_wejscia_do_windy": self.tick_wejscia_do_windy,
+            "tick_koniec": tick,
+            "czas_oczekiwania_tick": czas_oczekiwania,
+            "czas_przejazdu_tick": czas_przejazdu,
+            "czas_calkowity_tick": czas_calkowity,
+            "pietro_startu": self.pietro_startu_biezacego_przejazdu,
+            "pietro_docelowe": pietro_docelowe,
+            "typ_akcji": self.typ_biezacej_akcji,
+            "czy_losowe": self.czy_biezaca_akcja_losowa,
+        })
+
         self._zaloguj("zakonczenie_przejazdu", {
             "pietro_docelowe": pietro_docelowe,
             "stan_po": self.stan.name,
+            "tick": tick,
+            "czas_oczekiwania_tick": czas_oczekiwania,
+            "czas_przejazdu_tick": czas_przejazdu,
+            "czas_calkowity_tick": czas_calkowity,
         })
+
+        self._wyczysc_biezaca_sciezke()
+
+    def statystyki_przejazdow(self) -> dict:
+        rekordy_winda = [r for r in self.historia_przejazdow if r["typ_zakonczenia"] == "winda"]
+        rekordy_schody = [r for r in self.historia_przejazdow if r["typ_zakonczenia"] == "schody"]
+
+        def srednia(lista, pole):
+            wartosci = [x[pole] for x in lista if x.get(pole) is not None]
+            if not wartosci:
+                return None
+            return sum(wartosci) / len(wartosci)
+
+        return {
+            "liczba_przejazdow_winda": len(rekordy_winda),
+            "liczba_rezygnacji_schody": len(rekordy_schody),
+            "sredni_czas_oczekiwania_tick": srednia(rekordy_winda, "czas_oczekiwania_tick"),
+            "sredni_czas_przejazdu_tick": srednia(rekordy_winda, "czas_przejazdu_tick"),
+            "sredni_czas_calkowity_tick": srednia(rekordy_winda, "czas_calkowity_tick"),
+        }
+
+    def serializuj_plan_dnia(self) -> dict:
+        return {
+            "id_agenta": self.id_agenta,
+            "dzien_planu": self.dzien_planu,
+            "decyzje_dnia": [
+                {
+                    "dzien": decyzja.dzien,
+                    "godzina_od": decyzja.blok.godzina_od,
+                    "godzina_do": decyzja.blok.godzina_do,
+                    "nazwa": decyzja.blok.nazwa,
+                    "wspolczynnik_uczestnictwa": decyzja.blok.wspolczynnik_uczestnictwa,
+                    "czy_agent_idzie": decyzja.czy_agent_idzie,
+                    "powod": decyzja.powod,
+                }
+                for decyzja in self.decyzje_dnia
+            ],
+            "harmonogram_dnia": [
+                {
+                    "minuta": akcja.minuta,
+                    "czas": akcja.minuta_hhmm(),
+                    "typ_akcji": akcja.typ_akcji,
+                    "opis": akcja.opis,
+                    "czy_losowe": akcja.czy_losowe,
+                }
+                for akcja in self.harmonogram_dnia
+            ],
+            "nastepne_akcje": self.nastepne_akcje(5),
+        }
 
     def snapshot(self) -> dict:
         return {
@@ -228,7 +366,18 @@ class AgentStudenta:
             "dzien_planu": self.dzien_planu,
             "liczba_blokow_w_dniu": len(self.decyzje_dnia),
             "liczba_akcji_w_dniu": len(self.harmonogram_dnia),
+            "liczba_akcji_losowych": sum(1 for a in self.harmonogram_dnia if a.czy_losowe),
+            "nastepne_akcje": self.nastepne_akcje(3),
+            "statystyki_przejazdow": self.statystyki_przejazdow(),
         }
+
+    def _wyczysc_biezaca_sciezke(self) -> None:
+        self.tick_rozpoczecia_biezacego_oczekiwania = None
+        self.tick_wejscia_do_windy = None
+        self.pietro_startu_biezacego_przejazdu = None
+        self.cel_biezacego_przejazdu = None
+        self.typ_biezacej_akcji = None
+        self.czy_biezaca_akcja_losowa = False
 
     def _zaloguj(self, typ: str, payload: dict) -> None:
         self.log_zdarzen.append({
