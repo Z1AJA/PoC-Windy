@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(slots=True)
 class UstawieniaProjektu:
-    seed_glowny: int = 12345
+    seed_glowny: int = 42
     pietro_parteru: int = 0
 
     bufor_wyjscia_przed_zajeciami_minuty: int = 15

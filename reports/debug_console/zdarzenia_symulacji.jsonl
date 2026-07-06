@@ -1,0 +1,4 @@
+{"typ": "dodano_grupe", "payload": {"nazwa": "g1_p4", "plan_id": "rok_1_grupa_1_polowa_1", "pietro_domowe": 4, "liczba_agentow": 5}}
+{"typ": "dodano_grupe", "payload": {"nazwa": "g2_p7", "plan_id": "rok_1_grupa_1_polowa_2", "pietro_domowe": 7, "liczba_agentow": 4}}
+{"typ": "dodano_grupe", "payload": {"nazwa": "g3_p10", "plan_id": "rok_1_grupa_2_polowa_1", "pietro_domowe": 10, "liczba_agentow": 3}}
+{"typ": "przygotowano_dzien", "payload": {"dzien": "poniedzialek"}}
