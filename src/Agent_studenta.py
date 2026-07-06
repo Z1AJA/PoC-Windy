@@ -249,6 +249,9 @@ class AgentStudenta:
 
     def rozpocznij_przejazd_winda(self, tick: int) -> None:
         self.tick_wejscia_do_windy = tick
+        self.pozycja_w_kolejce = None
+        self.kierunek_kolejki = None
+        self.tick_wejscia_do_kolejki = None
         self.stan = StanAgenta.JEDZIE_WINDA
         self._zaloguj("rozpoczecie_przejazdu_winda", {
             "cel_pietro": self.cel_pietro,

@@ -1,3 +1,4 @@
+from _bootstrap_paths import ROOT  # noqa: F401
 import random
 import unittest
 
@@ -66,4 +67,4 @@ class TestyNawigacjiPoPlanie(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()\n
+    unittest.main()

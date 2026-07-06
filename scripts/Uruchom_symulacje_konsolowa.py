@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+from _bootstrap_paths import ROOT  # noqa: F401
 import time
 from pathlib import Path
 
@@ -14,7 +13,7 @@ from Ustawienia_projektu import UstawieniaProjektu
 
 
 def main() -> None:
-    repo = wczytaj_repozytorium_planow(Path("./Plany_zajec"))
+    repo = wczytaj_repozytorium_planow(ROOT / "data" / "Plany_zajec")
     ustawienia = UstawieniaProjektu()
     parametry = ParametryWindy(
         liczba_pieter=15,
@@ -25,10 +24,10 @@ def main() -> None:
         poczatkowe_obciazenie=0,
     )
     winda = SilnikWindy(parametry=parametry)
-    czas = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=7 * 30 * 60)
+    czas = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=7 * 3600 + 30 * 60)
 
     menedzer = MenedzerAgentow(repo, winda, ustawienia)
-    logger = LoggerSymulacji(Path("./Debug_output"))
+    logger = LoggerSymulacji(ROOT / "reports" / "debug_console")
     plan_ids = repo.plan_ids()
 
     menedzer.dodaj_grupe(KonfiguracjaGrupyAgentow("g1_p4", plan_ids[0], 4, 5))
@@ -67,7 +66,7 @@ def main() -> None:
                     snapshot_menedzera=menedzer.snapshot(),
                     zdarzenia=menedzer.ostatnie_zdarzenia(12),
                 ))
-                print("\nPlany dnia i metryki agentów zapisują się do folderu Debug_output.")
+                print("\nPlany dnia i metryki agentów zapisują się do folderu reports/debug_console.")
                 print("Ctrl+C aby zakończyć.")
                 time.sleep(0.08)
 
@@ -79,7 +78,7 @@ def main() -> None:
         logger.eksportuj_plany_dnia_txt(menedzer)
         wyczysc_ekran()
         print("Symulacja zatrzymana przez użytkownika.")
-        print("Wyeksportowano debug do folderu Debug_output.")
+        print("Wyeksportowano debug do folderu reports/debug_console.")
 
 
 if __name__ == "__main__":

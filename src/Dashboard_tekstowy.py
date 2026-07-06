@@ -87,7 +87,7 @@ def renderuj_dashboard(
     agenci_linie.extend([
         "",
         "Statystyki:",
-        f"- wezwania ludzkie (agenci): {stats['liczba_wezwan_systemowych']}",
+        f"- wezwania ludzkie (agenci): {stats['liczba_nacisniec_agentowych']}",
         f"- wejścia do windy: {stats['liczba_wejsc_do_windy']}",
         f"- wyjścia z windy: {stats['liczba_wyjsc_z_windy']}",
         f"- ghost calle: {stats['liczba_ghost_calli']}",

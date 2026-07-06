@@ -1,0 +1,62 @@
+RAPORT TURBO TESTU
+============================================================
+Testy jednostkowe returncode: 0
+Wszystkie scenariusze bez błędów: True
+Suma błędów scenariuszy: 0
+
+=== STDERR TESTÓW JEDNOSTKOWYCH ===
+..................
+----------------------------------------------------------------------
+Ran 18 tests in 0.001s
+
+OK
+
+--- SCENARIUSZ: normalny_dzien ---
+seed=111 ticks=36000 manual_events=89
+Brak błędów.
+Ostatnie próbki:
+  poniedzialek 15:30:00 | P=7 | obc=0 | metryki={'liczba_przejazdow_winda': 41, 'sredni_czas_oczekiwania_tick': 30.829, 'sredni_czas_przejazdu_tick': 32.293, 'sredni_czas_calkowity_tick': 63.122}
+  poniedzialek 16:00:00 | P=13 | obc=0 | metryki={'liczba_przejazdow_winda': 41, 'sredni_czas_oczekiwania_tick': 30.829, 'sredni_czas_przejazdu_tick': 32.293, 'sredni_czas_calkowity_tick': 63.122}
+  poniedzialek 16:30:00 | P=10 | obc=0 | metryki={'liczba_przejazdow_winda': 41, 'sredni_czas_oczekiwania_tick': 30.829, 'sredni_czas_przejazdu_tick': 32.293, 'sredni_czas_calkowity_tick': 63.122}
+  poniedzialek 17:00:00 | P=7 | obc=0 | metryki={'liczba_przejazdow_winda': 47, 'sredni_czas_oczekiwania_tick': 32.0, 'sredni_czas_przejazdu_tick': 32.426, 'sredni_czas_calkowity_tick': 64.426}
+  poniedzialek 17:30:00 | P=4 | obc=0 | metryki={'liczba_przejazdow_winda': 48, 'sredni_czas_oczekiwania_tick': 31.333, 'sredni_czas_przejazdu_tick': 32.167, 'sredni_czas_calkowity_tick': 63.5}
+
+--- SCENARIUSZ: ciasna_pojemnosc ---
+seed=222 ticks=30000 manual_events=53
+Brak błędów.
+Ostatnie próbki:
+  poniedzialek 13:00:00 | P=1 | obc=0 | metryki={'liczba_przejazdow_winda': 11, 'sredni_czas_oczekiwania_tick': 16.727, 'sredni_czas_przejazdu_tick': 30.545, 'sredni_czas_calkowity_tick': 47.273}
+  poniedzialek 13:30:00 | P=14 | obc=0 | metryki={'liczba_przejazdow_winda': 16, 'sredni_czas_oczekiwania_tick': 29.75, 'sredni_czas_przejazdu_tick': 30.75, 'sredni_czas_calkowity_tick': 60.5}
+  poniedzialek 14:00:00 | P=10 | obc=0 | metryki={'liczba_przejazdow_winda': 16, 'sredni_czas_oczekiwania_tick': 29.75, 'sredni_czas_przejazdu_tick': 30.75, 'sredni_czas_calkowity_tick': 60.5}
+  poniedzialek 14:30:00 | P=5 | obc=0 | metryki={'liczba_przejazdow_winda': 17, 'sredni_czas_oczekiwania_tick': 31.294, 'sredni_czas_przejazdu_tick': 30.824, 'sredni_czas_calkowity_tick': 62.118}
+  poniedzialek 15:00:00 | P=4 | obc=0 | metryki={'liczba_przejazdow_winda': 25, 'sredni_czas_oczekiwania_tick': 42.72, 'sredni_czas_przejazdu_tick': 32.8, 'sredni_czas_calkowity_tick': 75.52}
+
+--- SCENARIUSZ: wolna_winda ---
+seed=333 ticks=30000 manual_events=68
+Brak błędów.
+Ostatnie próbki:
+  poniedzialek 13:30:00 | P=8 | obc=0 | metryki={'liczba_przejazdow_winda': 23, 'sredni_czas_oczekiwania_tick': 48.087, 'sredni_czas_przejazdu_tick': 77.696, 'sredni_czas_calkowity_tick': 125.783}
+  poniedzialek 14:00:00 | P=11 | obc=0 | metryki={'liczba_przejazdow_winda': 23, 'sredni_czas_oczekiwania_tick': 48.087, 'sredni_czas_przejazdu_tick': 77.696, 'sredni_czas_calkowity_tick': 125.783}
+  poniedzialek 14:30:00 | P=8 | obc=0 | metryki={'liczba_przejazdow_winda': 23, 'sredni_czas_oczekiwania_tick': 48.087, 'sredni_czas_przejazdu_tick': 77.696, 'sredni_czas_calkowity_tick': 125.783}
+  poniedzialek 15:00:00 | P=8 | obc=0 | metryki={'liczba_przejazdow_winda': 34, 'sredni_czas_oczekiwania_tick': 62.265, 'sredni_czas_przejazdu_tick': 70.912, 'sredni_czas_calkowity_tick': 133.176}
+  poniedzialek 15:30:00 | P=0 | obc=0 | metryki={'liczba_przejazdow_winda': 34, 'sredni_czas_oczekiwania_tick': 62.265, 'sredni_czas_przejazdu_tick': 70.912, 'sredni_czas_calkowity_tick': 133.176}
+
+--- SCENARIUSZ: szybka_winda ---
+seed=444 ticks=24000 manual_events=56
+Brak błędów.
+Ostatnie próbki:
+  poniedzialek 12:00:00 | P=0 | obc=0 | metryki={'liczba_przejazdow_winda': 20, 'sredni_czas_oczekiwania_tick': 11.05, 'sredni_czas_przejazdu_tick': 18.5, 'sredni_czas_calkowity_tick': 29.55}
+  poniedzialek 12:30:00 | P=10 | obc=0 | metryki={'liczba_przejazdow_winda': 21, 'sredni_czas_oczekiwania_tick': 11.286, 'sredni_czas_przejazdu_tick': 18.667, 'sredni_czas_calkowity_tick': 29.952}
+  poniedzialek 13:00:00 | P=1 | obc=0 | metryki={'liczba_przejazdow_winda': 22, 'sredni_czas_oczekiwania_tick': 11.682, 'sredni_czas_przejazdu_tick': 18.273, 'sredni_czas_calkowity_tick': 29.955}
+  poniedzialek 13:30:00 | P=1 | obc=0 | metryki={'liczba_przejazdow_winda': 29, 'sredni_czas_oczekiwania_tick': 17.138, 'sredni_czas_przejazdu_tick': 17.31, 'sredni_czas_calkowity_tick': 34.448}
+  poniedzialek 14:00:00 | P=8 | obc=0 | metryki={'liczba_przejazdow_winda': 29, 'sredni_czas_oczekiwania_tick': 17.138, 'sredni_czas_przejazdu_tick': 17.31, 'sredni_czas_calkowity_tick': 34.448}
+
+--- SCENARIUSZ: wieczorny_start ---
+seed=555 ticks=24000 manual_events=50
+Brak błędów.
+Ostatnie próbki:
+  poniedzialek 19:30:00 | P=1 | obc=0 | metryki={'liczba_przejazdow_winda': 19, 'sredni_czas_oczekiwania_tick': 28.421, 'sredni_czas_przejazdu_tick': 33.474, 'sredni_czas_calkowity_tick': 61.895}
+  poniedzialek 20:00:00 | P=0 | obc=0 | metryki={'liczba_przejazdow_winda': 19, 'sredni_czas_oczekiwania_tick': 28.421, 'sredni_czas_przejazdu_tick': 33.474, 'sredni_czas_calkowity_tick': 61.895}
+  poniedzialek 20:30:00 | P=10 | obc=0 | metryki={'liczba_przejazdow_winda': 19, 'sredni_czas_oczekiwania_tick': 28.421, 'sredni_czas_przejazdu_tick': 33.474, 'sredni_czas_calkowity_tick': 61.895}
+  poniedzialek 21:00:00 | P=9 | obc=0 | metryki={'liczba_przejazdow_winda': 19, 'sredni_czas_oczekiwania_tick': 28.421, 'sredni_czas_przejazdu_tick': 33.474, 'sredni_czas_calkowity_tick': 61.895}
+  poniedzialek 21:30:00 | P=6 | obc=0 | metryki={'liczba_przejazdow_winda': 19, 'sredni_czas_oczekiwania_tick': 28.421, 'sredni_czas_przejazdu_tick': 33.474, 'sredni_czas_calkowity_tick': 61.895}

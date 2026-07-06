@@ -1,3 +1,4 @@
+from _bootstrap_paths import ROOT  # noqa: F401
 import unittest
 
 from Konfiguracja_windy import ParametryWindy

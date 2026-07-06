@@ -42,7 +42,7 @@ class MenedzerAgentow:
 
         self.log_zdarzen = deque(maxlen=5000)
         self.statystyki = {
-            "liczba_wezwan_systemowych": 0,
+            "liczba_nacisniec_agentowych": 0,
             "liczba_wejsc_do_windy": 0,
             "liczba_wyjsc_z_windy": 0,
             "liczba_rezygnacji_schody": 0,
@@ -179,7 +179,7 @@ class MenedzerAgentow:
         else:
             self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
 
-        self.statystyki["liczba_wezwan_systemowych"] += 1
+        self.statystyki["liczba_nacisniec_agentowych"] += 1
         self._zaloguj("dolaczenie_do_kolejki", {
             "tick": tick,
             "agent": agent.id_agenta,
@@ -250,8 +250,9 @@ class MenedzerAgentow:
         for agent_id in do_wypuszczenia:
             agent = self.agenci[agent_id]
             agent.zakoncz_przejazd(pietro, tick)
-            self.agenci_w_windzie.remove(agent_id)
-            self.silnik_windy.obciazenie = max(0, self.silnik_windy.obciazenie - 1)
+            while agent_id in self.agenci_w_windzie:
+                self.agenci_w_windzie.remove(agent_id)
+                self.silnik_windy.obciazenie = max(0, self.silnik_windy.obciazenie - 1)
             self.statystyki["liczba_wyjsc_z_windy"] += 1
             self._zaloguj("wyjscie_z_windy", {
                 "tick": tick,
@@ -273,6 +274,10 @@ class MenedzerAgentow:
 
         for agent_id in kandydaci:
             agent = self.agenci[agent_id]
+
+            if agent_id in self.agenci_w_windzie:
+                continue
+
             self.kolejki.usun(agent_id, pietro, kierunek)
             agent.rozpocznij_przejazd_winda(tick)
             self.agenci_w_windzie.append(agent_id)

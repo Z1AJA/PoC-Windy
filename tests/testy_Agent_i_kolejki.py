@@ -1,3 +1,4 @@
+from _bootstrap_paths import ROOT  # noqa: F401
 import random
 import unittest
 
@@ -60,6 +61,14 @@ class TestyAgentaIKolejek(unittest.TestCase):
         self.agent.dolacz_do_kolejki("dol", tick=10, pozycja=1, cel_pietro=0)
         self.assertEqual(self.agent.stan, StanAgenta.CZEKA_NA_WINDE_W_DOL)
         self.assertEqual(self.agent.pozycja_w_kolejce, 1)
+
+    def test_rozpoczecie_przejazdu_czysci_stan_kolejki(self) -> None:
+        self.agent.dolacz_do_kolejki("dol", tick=10, pozycja=1, cel_pietro=0)
+        self.agent.rozpocznij_przejazd_winda(tick=12)
+        self.assertEqual(self.agent.stan, StanAgenta.JEDZIE_WINDA)
+        self.assertIsNone(self.agent.pozycja_w_kolejce)
+        self.assertIsNone(self.agent.kierunek_kolejki)
+        self.assertIsNone(self.agent.tick_wejscia_do_kolejki)
 
     def test_prawdopodobienstwo_schodow_rosnie_z_czasem(self) -> None:
         p1 = self.ustawienia.prawdopodobienstwo_rezygnacji_schodami(4, "dol", 0)
