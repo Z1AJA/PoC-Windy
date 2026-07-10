@@ -1,0 +1,66 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test / cache
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# =========================
+# IDE / system
+# =========================
+.vscode/
+.idea/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# =========================
+# Runtime outputs projektu
+# =========================
+outputs/
+reports/
+Debug_output/
+logs/
+
+# Logi i dane generowane podczas symulacji
+*.jsonl
+*.log
+
+# =========================
+# Pliki tymczasowe
+# =========================
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+
+# =========================
+# Lokalnie generowane raporty / testy
+# =========================
+raport_turbo_test.txt
+raport_turbo_test.json
+wynik_testow_jednostkowych.txt
+WYNIK_TESTOW_KROK_1.txt
+data/generated/
+
+# =========================
+# Jeśli GUI / symulacja zapisuje obrazy
+# ale nie chcesz ich wersjonować
+# =========================
+# *.png
+# *.jpg
+# *.jpeg
+# *.svg
