@@ -97,6 +97,7 @@ def renderuj_dashboard(
         f"- przejazdy windą: {metryki['liczba_przejazdow_winda']}",
         f"- śr. czekanie tick: {metryki['sredni_czas_oczekiwania_tick']}",
         f"- śr. przejazd tick: {metryki['sredni_czas_przejazdu_tick']}",
+        f"- rekordy ML: {snapshot_menedzera.get('liczba_rekordow_ml', 0)}",
     ])
 
     akcje_linie = []

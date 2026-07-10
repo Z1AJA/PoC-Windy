@@ -1,6 +1,5 @@
 from _bootstrap_paths import ROOT  # noqa: F401
 import time
-from pathlib import Path
 
 from Czas_symulacji import CzasSymulacji
 from Dashboard_tekstowy import renderuj_dashboard, wyczysc_ekran
@@ -48,7 +47,7 @@ def main() -> None:
             if ostatni_eksport_dnia != czas_info["nazwa_dnia"]:
                 logger.eksportuj_plany_dnia_json(menedzer)
                 logger.eksportuj_plany_dnia_txt(menedzer)
-                logger.eksportuj_metryki_agentow_json(menedzer)
+                logger.eksportuj_rekordy_ml_jsonl(menedzer)
                 ostatni_eksport_dnia = czas_info["nazwa_dnia"]
 
             if czas_info["sekunda"] == 0:
@@ -66,19 +65,19 @@ def main() -> None:
                     snapshot_menedzera=menedzer.snapshot(),
                     zdarzenia=menedzer.ostatnie_zdarzenia(12),
                 ))
-                print("\nPlany dnia i metryki agentów zapisują się do folderu reports/debug_console.")
+                print("\nPlany dnia są debugiem. Do ML zapisujemy tylko rekordy obserwowalne.")
                 print("Ctrl+C aby zakończyć.")
                 time.sleep(0.08)
 
     except KeyboardInterrupt:
         logger.eksportuj_probki_jsonl()
         logger.eksportuj_zdarzenia_jsonl()
-        logger.eksportuj_metryki_agentow_json(menedzer)
         logger.eksportuj_plany_dnia_json(menedzer)
         logger.eksportuj_plany_dnia_txt(menedzer)
+        logger.eksportuj_rekordy_ml_jsonl(menedzer)
         wyczysc_ekran()
         print("Symulacja zatrzymana przez użytkownika.")
-        print("Wyeksportowano debug do folderu reports/debug_console.")
+        print("Wyeksportowano debug i rekordy obserwowalne pod ML do reports/debug_console.")
 
 
 if __name__ == "__main__":

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from Agent_studenta import AgentStudenta, StanAgenta
 from Kolejki_pietrowe import KolejkiPietrowe
 from Loader_planow import RepozytoriumPlanow
+from Rejestrator_ml import RejestratorObserwacjiML
 from Silnik_windy import SilnikWindy
 from Kierunki_i_typy import Kierunek, ZrodloZgloszenia
 from Ustawienia_projektu import UstawieniaProjektu
@@ -34,11 +35,13 @@ class MenedzerAgentow:
         self.agenci: dict[str, AgentStudenta] = {}
         self.kolejki = KolejkiPietrowe()
         self.agenci_w_windzie: list[str] = []
+        self.rejestrator_ml = RejestratorObserwacjiML()
 
         self._generator_glowny = random.Random(self.ustawienia.seed_glowny)
         self._dzien_aktywny: str | None = None
         self._tick_ostatniej_obslugi_przystanku: int | None = None
         self._ostatni_tick_kroku: int = 0
+        self._ostatni_czas_info: dict | None = None
 
         self.log_zdarzen = deque(maxlen=5000)
         self.statystyki = {
@@ -92,6 +95,9 @@ class MenedzerAgentow:
             for agent_id, agent in sorted(self.agenci.items())
         }
 
+    def rekordy_ml_obserwowalne(self) -> list[dict]:
+        return self.rejestrator_ml.rekordy_jako_dict()
+
     def _agreguj_metryki(self) -> dict:
         rekordy = []
         for agent in self.agenci.values():
@@ -111,6 +117,7 @@ class MenedzerAgentow:
         }
 
     def krok(self, czas_info: dict) -> None:
+        self._ostatni_czas_info = dict(czas_info)
         nazwa_dnia = czas_info["nazwa_dnia"]
         minuta_dnia = czas_info["godzina"] * 60 + czas_info["minuta"]
         sekunda = czas_info["sekunda"]
@@ -173,7 +180,6 @@ class MenedzerAgentow:
             czy_losowe=czy_losowe,
         )
 
-        # To są symulowane naciśnięcia prawdziwych użytkowników, więc źródło zostawiamy jako CZŁOWIEK.
         if kierunek == "dol":
             self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.DOL, ZrodloZgloszenia.CZLOWIEK)
         else:
@@ -191,6 +197,31 @@ class MenedzerAgentow:
             "czy_losowe": czy_losowe,
             "zrodlo_w_systemie_windy": "CZLOWIEK",
         })
+        self._zarejestruj_wezwanie_ml(tick=tick, pietro=pietro, kierunek=kierunek)
+
+    def _zarejestruj_wezwanie_ml(self, tick: int, pietro: int, kierunek: str) -> None:
+        if self._ostatni_czas_info is None:
+            return
+        self.rejestrator_ml.zarejestruj_wezwanie_z_pietra(
+            tick=tick,
+            nazwa_dnia=self._ostatni_czas_info["nazwa_dnia"],
+            czas_tekst=self._ostatni_czas_info["czas_tekst"],
+            pietro=pietro,
+            kierunek=kierunek,
+            obciazenie_windy=self.silnik_windy.obciazenie,
+        )
+
+    def _zarejestruj_wybor_kabiny_ml(self, tick: int, pietro_docelowe: int, kierunek: str) -> None:
+        if self._ostatni_czas_info is None:
+            return
+        self.rejestrator_ml.zarejestruj_wybor_z_kabiny(
+            tick=tick,
+            nazwa_dnia=self._ostatni_czas_info["nazwa_dnia"],
+            czas_tekst=self._ostatni_czas_info["czas_tekst"],
+            pietro_docelowe=pietro_docelowe,
+            kierunek=kierunek,
+            obciazenie_windy=self.silnik_windy.obciazenie,
+        )
 
     def _obsluz_rezygnacje_na_schody(self, tick: int) -> None:
         for agent in self.agenci.values():
@@ -286,8 +317,10 @@ class MenedzerAgentow:
 
             if kierunek == "gora":
                 self.silnik_windy.dodaj_wybor_z_kabiny_teraz(agent.pietro_domowe, ZrodloZgloszenia.CZLOWIEK)
+                self._zarejestruj_wybor_kabiny_ml(tick=tick, pietro_docelowe=agent.pietro_domowe, kierunek="gora")
             else:
                 self.silnik_windy.dodaj_wybor_z_kabiny_teraz(self.ustawienia.pietro_parteru, ZrodloZgloszenia.CZLOWIEK)
+                self._zarejestruj_wybor_kabiny_ml(tick=tick, pietro_docelowe=self.ustawienia.pietro_parteru, kierunek="dol")
 
             self._zaloguj("wejscie_do_windy", {
                 "tick": tick,
@@ -324,6 +357,7 @@ class MenedzerAgentow:
         return {
             "liczba_agentow": len(self.agenci),
             "liczba_agentow_w_windzie": len(self.agenci_w_windzie),
+            "liczba_rekordow_ml": self.rejestrator_ml.liczba_rekordow(),
             "kolejki": self.kolejki.snapshot(),
             "stany_agentow": licznik_stanow,
             "statystyki": dict(self.statystyki),

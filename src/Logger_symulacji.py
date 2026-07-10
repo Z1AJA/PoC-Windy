@@ -28,6 +28,7 @@ class LoggerSymulacji:
             "statystyki": dict(snapshot_menedzera["statystyki"]),
             "kolejki": dict(snapshot_menedzera["kolejki"]),
             "metryki_zbiorcze": dict(snapshot_menedzera["metryki_zbiorcze"]),
+            "liczba_rekordow_ml": snapshot_menedzera.get("liczba_rekordow_ml", 0),
         })
 
     def pobierz_nowe_zdarzenia_z_menedzera(self, menedzer) -> None:
@@ -67,12 +68,6 @@ class LoggerSymulacji:
         sciezka.write_text("\n".join(linie), encoding="utf-8")
         return sciezka
 
-    def eksportuj_metryki_agentow_json(self, menedzer, nazwa_pliku: str = "metryki_agentow.json") -> Path:
-        dane = menedzer.metryki_agentow()
-        sciezka = self.katalog_wyjscia / nazwa_pliku
-        sciezka.write_text(json.dumps(dane, ensure_ascii=False, indent=2), encoding="utf-8")
-        return sciezka
-
     def eksportuj_probki_jsonl(self, nazwa_pliku: str = "probki_czasowe.jsonl") -> Path:
         sciezka = self.katalog_wyjscia / nazwa_pliku
         with sciezka.open("w", encoding="utf-8") as f:
@@ -84,5 +79,13 @@ class LoggerSymulacji:
         sciezka = self.katalog_wyjscia / nazwa_pliku
         with sciezka.open("w", encoding="utf-8") as f:
             for rekord in self.zdarzenia:
+                f.write(json.dumps(rekord, ensure_ascii=False) + "\n")
+        return sciezka
+
+    def eksportuj_rekordy_ml_jsonl(self, menedzer, nazwa_pliku: str = "rekordy_ml_obserwowalne.jsonl") -> Path:
+        rekordy = menedzer.rekordy_ml_obserwowalne()
+        sciezka = self.katalog_wyjscia / nazwa_pliku
+        with sciezka.open("w", encoding="utf-8") as f:
+            for rekord in rekordy:
                 f.write(json.dumps(rekord, ensure_ascii=False) + "\n")
         return sciezka
