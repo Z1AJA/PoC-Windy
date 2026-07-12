@@ -77,6 +77,11 @@ def renderuj_dashboard(
     stany = snapshot_menedzera["stany_agentow"]
     stats = snapshot_menedzera["statystyki"]
     metryki = snapshot_menedzera["metryki_zbiorcze"]
+    liczba_wezwan_agentowych = (
+        stats.get("liczba_nacisniec_wezwania")
+        if "liczba_nacisniec_wezwania" in stats
+        else stats.get("liczba_nacisniec_agentowych", 0)
+    )
     agenci_linie = [
         f"Liczba agentów: {snapshot_menedzera['liczba_agentow']}",
         f"W windzie: {snapshot_menedzera['liczba_agentow_w_windzie']}",
@@ -88,7 +93,7 @@ def renderuj_dashboard(
     agenci_linie.extend([
         "",
         "Statystyki:",
-        f"- wezwania ludzkie (agenci): {stats['liczba_nacisniec_agentowych']}",
+        f"- wezwania ludzkie (agenci): {liczba_wezwan_agentowych}",
         f"- wejścia do windy: {stats['liczba_wejsc_do_windy']}",
         f"- wyjścia z windy: {stats['liczba_wyjsc_z_windy']}",
         f"- ghost calle: {stats['liczba_ghost_calli']}",

@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from Agent_studenta import AgentStudenta, StanAgenta
 from Kolejki_pietrowe import KolejkiPietrowe
 from Loader_planow import RepozytoriumPlanow
-from Rejestrator_ml import RejestratorObserwacjiML
 from Silnik_windy import SilnikWindy
 from Kierunki_i_typy import Kierunek, ZrodloZgloszenia
 from Ustawienia_projektu import UstawieniaProjektu
@@ -35,17 +34,19 @@ class MenedzerAgentow:
         self.agenci: dict[str, AgentStudenta] = {}
         self.kolejki = KolejkiPietrowe()
         self.agenci_w_windzie: list[str] = []
-        self.rejestrator_ml = RejestratorObserwacjiML()
 
         self._generator_glowny = random.Random(self.ustawienia.seed_glowny)
         self._dzien_aktywny: str | None = None
         self._tick_ostatniej_obslugi_przystanku: int | None = None
         self._ostatni_tick_kroku: int = 0
-        self._ostatni_czas_info: dict | None = None
 
         self.log_zdarzen = deque(maxlen=5000)
         self.statystyki = {
-            "liczba_nacisniec_agentowych": 0,
+            "liczba_wezwan_systemowych": 0,
+            "liczba_nacisniec_wezwania": 0,
+            "liczba_dolaczen_do_istniejacego_wezwania": 0,
+            "liczba_nacisniec_wyboru_kabiny": 0,
+            "liczba_dolaczen_do_istniejacego_wyboru_kabiny": 0,
             "liczba_wejsc_do_windy": 0,
             "liczba_wyjsc_z_windy": 0,
             "liczba_rezygnacji_schody": 0,
@@ -95,9 +96,6 @@ class MenedzerAgentow:
             for agent_id, agent in sorted(self.agenci.items())
         }
 
-    def rekordy_ml_obserwowalne(self) -> list[dict]:
-        return self.rejestrator_ml.rekordy_jako_dict()
-
     def _agreguj_metryki(self) -> dict:
         rekordy = []
         for agent in self.agenci.values():
@@ -117,7 +115,6 @@ class MenedzerAgentow:
         }
 
     def krok(self, czas_info: dict) -> None:
-        self._ostatni_czas_info = dict(czas_info)
         nazwa_dnia = czas_info["nazwa_dnia"]
         minuta_dnia = czas_info["godzina"] * 60 + czas_info["minuta"]
         sekunda = czas_info["sekunda"]
@@ -141,34 +138,99 @@ class MenedzerAgentow:
 
             akcje = agent.pobierz_akcje_do_wykonania(minuta_dnia)
             for akcja in akcje:
+                self._zaloguj("akcja_agenta", {
+                    "tick": tick,
+                    "agent": agent.id_agenta,
+                    "akcja": akcja.typ_akcji,
+                    "opis": akcja.opis,
+                    "czy_losowe": akcja.czy_losowe,
+                    "pietro_docelowe": akcja.pietro_docelowe,
+                })
+
                 if akcja.typ_akcji == "wyjscie_z_akademika" and agent.stan == StanAgenta.W_AKADEMIKU:
-                    self._zaloguj("akcja_agenta", {
-                        "tick": tick,
-                        "agent": agent.id_agenta,
-                        "akcja": akcja.typ_akcji,
-                        "opis": akcja.opis,
-                        "czy_losowe": akcja.czy_losowe,
-                    })
                     self._dolacz_agenta_do_kolejki(
-                        agent, "dol", tick, self.ustawienia.pietro_parteru,
-                        typ_akcji=akcja.typ_akcji, czy_losowe=akcja.czy_losowe,
+                        agent=agent,
+                        kierunek="dol",
+                        tick=tick,
+                        cel_pietro=self.ustawienia.pietro_parteru,
+                        typ_akcji=akcja.typ_akcji,
+                        czy_losowe=akcja.czy_losowe,
                     )
 
                 elif akcja.typ_akcji == "powrot_do_akademika" and agent.stan == StanAgenta.POZA_AKADEMIKIEM:
                     agent.aktualne_pietro = self.ustawienia.pietro_parteru
-                    self._zaloguj("akcja_agenta", {
-                        "tick": tick,
-                        "agent": agent.id_agenta,
-                        "akcja": akcja.typ_akcji,
-                        "opis": akcja.opis,
-                        "czy_losowe": akcja.czy_losowe,
-                    })
                     self._dolacz_agenta_do_kolejki(
-                        agent, "gora", tick, agent.pietro_domowe,
-                        typ_akcji=akcja.typ_akcji, czy_losowe=akcja.czy_losowe,
+                        agent=agent,
+                        kierunek="gora",
+                        tick=tick,
+                        cel_pietro=agent.pietro_domowe,
+                        typ_akcji=akcja.typ_akcji,
+                        czy_losowe=akcja.czy_losowe,
                     )
 
-    def _dolacz_agenta_do_kolejki(self, agent: AgentStudenta, kierunek: str, tick: int, cel_pietro: int, typ_akcji: str | None, czy_losowe: bool) -> None:
+                elif akcja.typ_akcji == "przejazd_miedzy_pietrami" and agent.stan == StanAgenta.W_AKADEMIKU and akcja.pietro_docelowe is not None:
+                    if agent.aktualne_pietro is None or agent.aktualne_pietro == akcja.pietro_docelowe:
+                        continue
+                    kierunek = "gora" if akcja.pietro_docelowe > agent.aktualne_pietro else "dol"
+                    self._dolacz_agenta_do_kolejki(
+                        agent=agent,
+                        kierunek=kierunek,
+                        tick=tick,
+                        cel_pietro=akcja.pietro_docelowe,
+                        typ_akcji=akcja.typ_akcji,
+                        czy_losowe=akcja.czy_losowe,
+                    )
+
+                elif akcja.typ_akcji == "powrot_na_pietro_domowe" and agent.stan == StanAgenta.W_AKADEMIKU:
+                    if agent.aktualne_pietro is None or agent.aktualne_pietro == agent.pietro_domowe:
+                        continue
+                    kierunek = "gora" if agent.pietro_domowe > agent.aktualne_pietro else "dol"
+                    self._dolacz_agenta_do_kolejki(
+                        agent=agent,
+                        kierunek=kierunek,
+                        tick=tick,
+                        cel_pietro=agent.pietro_domowe,
+                        typ_akcji=akcja.typ_akcji,
+                        czy_losowe=akcja.czy_losowe,
+                    )
+
+    def _czy_wezwanie_juz_aktywne(self, pietro: int, kierunek: str) -> bool:
+        if kierunek == "gora":
+            return pietro in self.silnik_windy.wezwania_gora
+        return pietro in self.silnik_windy.wezwania_dol
+
+    def _czy_wybor_kabiny_juz_aktywny(self, pietro_docelowe: int) -> bool:
+        return pietro_docelowe in self.silnik_windy.wybory_z_kabiny
+
+    def _reaktywuj_wezwanie_jesli_pozostali_ludzie(self, pietro: int, kierunek: str, tick: int) -> None:
+        if self.kolejki.liczba_oczekujacych(pietro, kierunek) <= 0:
+            return
+        if self._czy_wezwanie_juz_aktywne(pietro, kierunek):
+            return
+
+        if kierunek == "dol":
+            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.DOL, ZrodloZgloszenia.CZLOWIEK)
+        else:
+            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
+
+        self.statystyki["liczba_wezwan_systemowych"] += 1
+        self.statystyki["liczba_nacisniec_wezwania"] += 1
+        self._zaloguj("reaktywacja_wezwania", {
+            "tick": tick,
+            "pietro": pietro,
+            "kierunek": kierunek,
+            "zrodlo_w_systemie_windy": "CZLOWIEK",
+        })
+
+    def _dolacz_agenta_do_kolejki(
+        self,
+        agent: AgentStudenta,
+        kierunek: str,
+        tick: int,
+        cel_pietro: int,
+        typ_akcji: str | None,
+        czy_losowe: bool,
+    ) -> None:
         pietro = agent.aktualne_pietro if agent.aktualne_pietro is not None else agent.pietro_domowe
         pozycja = self.kolejki.dolacz(agent.id_agenta, pietro, kierunek)
         agent.dolacz_do_kolejki(
@@ -180,13 +242,21 @@ class MenedzerAgentow:
             czy_losowe=czy_losowe,
         )
 
-        if kierunek == "dol":
-            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.DOL, ZrodloZgloszenia.CZLOWIEK)
-        else:
-            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
+        wezwanie_juz_aktywne = self._czy_wezwanie_juz_aktywne(pietro, kierunek)
+        if not wezwanie_juz_aktywne:
+            if kierunek == "dol":
+                self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.DOL, ZrodloZgloszenia.CZLOWIEK)
+            else:
+                self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
 
-        self.statystyki["liczba_nacisniec_agentowych"] += 1
-        self._zaloguj("dolaczenie_do_kolejki", {
+            self.statystyki["liczba_wezwan_systemowych"] += 1
+            self.statystyki["liczba_nacisniec_wezwania"] += 1
+            rodzaj_zdarzenia = "nacisniecie_przycisku_wezwania"
+        else:
+            self.statystyki["liczba_dolaczen_do_istniejacego_wezwania"] += 1
+            rodzaj_zdarzenia = "dolaczenie_do_istniejacego_wezwania"
+
+        self._zaloguj(rodzaj_zdarzenia, {
             "tick": tick,
             "agent": agent.id_agenta,
             "pietro": pietro,
@@ -197,31 +267,6 @@ class MenedzerAgentow:
             "czy_losowe": czy_losowe,
             "zrodlo_w_systemie_windy": "CZLOWIEK",
         })
-        self._zarejestruj_wezwanie_ml(tick=tick, pietro=pietro, kierunek=kierunek)
-
-    def _zarejestruj_wezwanie_ml(self, tick: int, pietro: int, kierunek: str) -> None:
-        if self._ostatni_czas_info is None:
-            return
-        self.rejestrator_ml.zarejestruj_wezwanie_z_pietra(
-            tick=tick,
-            nazwa_dnia=self._ostatni_czas_info["nazwa_dnia"],
-            czas_tekst=self._ostatni_czas_info["czas_tekst"],
-            pietro=pietro,
-            kierunek=kierunek,
-            obciazenie_windy=self.silnik_windy.obciazenie,
-        )
-
-    def _zarejestruj_wybor_kabiny_ml(self, tick: int, pietro_docelowe: int, kierunek: str) -> None:
-        if self._ostatni_czas_info is None:
-            return
-        self.rejestrator_ml.zarejestruj_wybor_z_kabiny(
-            tick=tick,
-            nazwa_dnia=self._ostatni_czas_info["nazwa_dnia"],
-            czas_tekst=self._ostatni_czas_info["czas_tekst"],
-            pietro_docelowe=pietro_docelowe,
-            kierunek=kierunek,
-            obciazenie_windy=self.silnik_windy.obciazenie,
-        )
 
     def _obsluz_rezygnacje_na_schody(self, tick: int) -> None:
         for agent in self.agenci.values():
@@ -281,9 +326,8 @@ class MenedzerAgentow:
         for agent_id in do_wypuszczenia:
             agent = self.agenci[agent_id]
             agent.zakoncz_przejazd(pietro, tick)
-            while agent_id in self.agenci_w_windzie:
-                self.agenci_w_windzie.remove(agent_id)
-                self.silnik_windy.obciazenie = max(0, self.silnik_windy.obciazenie - 1)
+            self.agenci_w_windzie.remove(agent_id)
+            self.silnik_windy.obciazenie = max(0, self.silnik_windy.obciazenie - 1)
             self.statystyki["liczba_wyjsc_z_windy"] += 1
             self._zaloguj("wyjscie_z_windy", {
                 "tick": tick,
@@ -305,35 +349,43 @@ class MenedzerAgentow:
 
         for agent_id in kandydaci:
             agent = self.agenci[agent_id]
-
-            if agent_id in self.agenci_w_windzie:
-                continue
-
             self.kolejki.usun(agent_id, pietro, kierunek)
             agent.rozpocznij_przejazd_winda(tick)
             self.agenci_w_windzie.append(agent_id)
             self.silnik_windy.obciazenie += 1
             self.statystyki["liczba_wejsc_do_windy"] += 1
 
-            if kierunek == "gora":
-                self.silnik_windy.dodaj_wybor_z_kabiny_teraz(agent.pietro_domowe, ZrodloZgloszenia.CZLOWIEK)
-                self._zarejestruj_wybor_kabiny_ml(tick=tick, pietro_docelowe=agent.pietro_domowe, kierunek="gora")
+            pietro_docelowe = agent.cel_pietro if agent.cel_pietro is not None else (
+                agent.pietro_domowe if kierunek == "gora" else self.ustawienia.pietro_parteru
+            )
+            wybor_juz_aktywny = self._czy_wybor_kabiny_juz_aktywny(pietro_docelowe)
+            if not wybor_juz_aktywny:
+                self.silnik_windy.dodaj_wybor_z_kabiny_teraz(pietro_docelowe, ZrodloZgloszenia.CZLOWIEK)
+                self.statystyki["liczba_nacisniec_wyboru_kabiny"] += 1
+                typ_zdarzenia = "nacisniecie_przycisku_kabiny"
             else:
-                self.silnik_windy.dodaj_wybor_z_kabiny_teraz(self.ustawienia.pietro_parteru, ZrodloZgloszenia.CZLOWIEK)
-                self._zarejestruj_wybor_kabiny_ml(tick=tick, pietro_docelowe=self.ustawienia.pietro_parteru, kierunek="dol")
+                self.statystyki["liczba_dolaczen_do_istniejacego_wyboru_kabiny"] += 1
+                typ_zdarzenia = "dolaczenie_do_istniejacego_wyboru_kabiny"
 
             self._zaloguj("wejscie_do_windy", {
                 "tick": tick,
                 "agent": agent_id,
                 "pietro": pietro,
                 "kierunek": kierunek,
-                "cel": agent.cel_pietro if agent.cel_pietro is not None else (
-                    agent.pietro_domowe if kierunek == "gora" else self.ustawienia.pietro_parteru
-                ),
+                "cel": pietro_docelowe,
+                "zrodlo_w_systemie_windy": "CZLOWIEK",
+            })
+            self._zaloguj(typ_zdarzenia, {
+                "tick": tick,
+                "agent": agent_id,
+                "pietro": pietro,
+                "kierunek": kierunek,
+                "cel": pietro_docelowe,
                 "zrodlo_w_systemie_windy": "CZLOWIEK",
             })
 
         self._przelicz_pozycje_w_kolejce(pietro, kierunek)
+        self._reaktywuj_wezwanie_jesli_pozostali_ludzie(pietro, kierunek, tick)
 
     def _przelicz_pozycje_w_kolejce(self, pietro: int, kierunek: str) -> None:
         pozycje = self.kolejki.aktualizuj_pozycje_pozostalych(pietro, kierunek)
@@ -357,7 +409,6 @@ class MenedzerAgentow:
         return {
             "liczba_agentow": len(self.agenci),
             "liczba_agentow_w_windzie": len(self.agenci_w_windzie),
-            "liczba_rekordow_ml": self.rejestrator_ml.liczba_rekordow(),
             "kolejki": self.kolejki.snapshot(),
             "stany_agentow": licznik_stanow,
             "statystyki": dict(self.statystyki),

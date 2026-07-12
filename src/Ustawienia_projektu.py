@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 @dataclass(slots=True)
 class UstawieniaProjektu:
-    seed_glowny: int = 42
+    seed_glowny: int = 12345
     pietro_parteru: int = 0
 
     bufor_wyjscia_przed_zajeciami_minuty: int = 15
@@ -20,11 +20,22 @@ class UstawieniaProjektu:
     limit_prawdopodobienstwa_schody_w_dol: float = 0.35
     limit_prawdopodobienstwa_schody_w_gore: float = 0.05
 
+    # Losowe wyjścia poza akademik
     prawdopodobienstwo_losowego_cyklu_dnia: float = 0.25
     minimalna_liczba_losowych_cykli: int = 1
     maksymalna_liczba_losowych_cykli: int = 2
     min_czas_poza_akademikiem_minuty: int = 30
     max_czas_poza_akademikiem_minuty: int = 120
+
+    # Losowe przejazdy między piętrami akademika
+    prawdopodobienstwo_losowego_przejazdu_wewnatrz_akademika: float = 0.20
+    minimalna_liczba_przejazdow_wewnatrz: int = 1
+    maksymalna_liczba_przejazdow_wewnatrz: int = 2
+    min_czas_na_innym_pietrze_minuty: int = 10
+    max_czas_na_innym_pietrze_minuty: int = 60
+    minimalne_pietro_losowych_przejazdow_wewnatrz: int = 1
+    maksymalne_pietro_losowych_przejazdow_wewnatrz: int = 15
+
     najwczesniejsza_minuta_losowych_akcji: int = 8 * 60
     najpozniejsza_minuta_losowych_akcji: int = 22 * 60
     minimalny_odstep_od_innych_akcji_minuty: int = 20
@@ -34,8 +45,15 @@ class UstawieniaProjektu:
             raise ValueError("bufor_wyjscia_przed_zajeciami_minuty nie może być ujemny")
         if self.prog_powrotu_do_akademika_minuty < 0:
             raise ValueError("prog_powrotu_do_akademika_minuty nie może być ujemny")
-        if not (0.0 <= self.prawdopodobienstwo_losowego_cyklu_dnia <= 1.0):
-            raise ValueError("prawdopodobienstwo_losowego_cyklu_dnia musi być w zakresie 0..1")
+
+        for nazwa in [
+            "prawdopodobienstwo_losowego_cyklu_dnia",
+            "prawdopodobienstwo_losowego_przejazdu_wewnatrz_akademika",
+        ]:
+            wartosc = getattr(self, nazwa)
+            if not (0.0 <= wartosc <= 1.0):
+                raise ValueError(f"{nazwa} musi być w zakresie 0..1")
+
         if self.minimalna_liczba_losowych_cykli < 0:
             raise ValueError("minimalna_liczba_losowych_cykli nie może być ujemna")
         if self.maksymalna_liczba_losowych_cykli < self.minimalna_liczba_losowych_cykli:
@@ -44,6 +62,18 @@ class UstawieniaProjektu:
             raise ValueError("min_czas_poza_akademikiem_minuty musi być > 0")
         if self.max_czas_poza_akademikiem_minuty < self.min_czas_poza_akademikiem_minuty:
             raise ValueError("max_czas_poza_akademikiem_minuty nie może być mniejszy od minimalnego")
+
+        if self.minimalna_liczba_przejazdow_wewnatrz < 0:
+            raise ValueError("minimalna_liczba_przejazdow_wewnatrz nie może być ujemna")
+        if self.maksymalna_liczba_przejazdow_wewnatrz < self.minimalna_liczba_przejazdow_wewnatrz:
+            raise ValueError("maksymalna_liczba_przejazdow_wewnatrz nie może być mniejsza od minimalnej")
+        if self.min_czas_na_innym_pietrze_minuty <= 0:
+            raise ValueError("min_czas_na_innym_pietrze_minuty musi być > 0")
+        if self.max_czas_na_innym_pietrze_minuty < self.min_czas_na_innym_pietrze_minuty:
+            raise ValueError("max_czas_na_innym_pietrze_minuty nie może być mniejszy od minimalnego")
+        if self.maksymalne_pietro_losowych_przejazdow_wewnatrz < self.minimalne_pietro_losowych_przejazdow_wewnatrz:
+            raise ValueError("zakres pięter losowych przejazdów wewnętrznych jest niepoprawny")
+
         if self.najpozniejsza_minuta_losowych_akcji <= self.najwczesniejsza_minuta_losowych_akcji:
             raise ValueError("okno losowych akcji jest niepoprawne")
         if self.minimalny_odstep_od_innych_akcji_minuty < 0:

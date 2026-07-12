@@ -94,9 +94,18 @@ class AgentStudenta:
             maksymalna_liczba_losowych_cykli=self.ustawienia.maksymalna_liczba_losowych_cykli,
             min_czas_poza_akademikiem_minuty=self.ustawienia.min_czas_poza_akademikiem_minuty,
             max_czas_poza_akademikiem_minuty=self.ustawienia.max_czas_poza_akademikiem_minuty,
+            prawdopodobienstwo_losowego_przejazdu_wewnatrz_akademika=self.ustawienia.prawdopodobienstwo_losowego_przejazdu_wewnatrz_akademika,
+            minimalna_liczba_przejazdow_wewnatrz=self.ustawienia.minimalna_liczba_przejazdow_wewnatrz,
+            maksymalna_liczba_przejazdow_wewnatrz=self.ustawienia.maksymalna_liczba_przejazdow_wewnatrz,
+            min_czas_na_innym_pietrze_minuty=self.ustawienia.min_czas_na_innym_pietrze_minuty,
+            max_czas_na_innym_pietrze_minuty=self.ustawienia.max_czas_na_innym_pietrze_minuty,
             najwczesniejsza_minuta_losowych_akcji=self.ustawienia.najwczesniejsza_minuta_losowych_akcji,
             najpozniejsza_minuta_losowych_akcji=self.ustawienia.najpozniejsza_minuta_losowych_akcji,
             minimalny_odstep_od_innych_akcji_minuty=self.ustawienia.minimalny_odstep_od_innych_akcji_minuty,
+            pietro_domowe=self.pietro_domowe,
+            minimalne_pietro_losowych_przejazdow_wewnatrz=self.ustawienia.minimalne_pietro_losowych_przejazdow_wewnatrz,
+            maksymalne_pietro_losowych_przejazdow_wewnatrz=self.ustawienia.maksymalne_pietro_losowych_przejazdow_wewnatrz,
+            pietro_parteru=self.ustawienia.pietro_parteru,
         )
         self.indeks_nastepnej_akcji = 0
         self._zaloguj("przygotowano_dzien", {
@@ -125,6 +134,7 @@ class AgentStudenta:
                 "typ_akcji": akcja.typ_akcji,
                 "opis": akcja.opis,
                 "czy_losowe": akcja.czy_losowe,
+                "pietro_docelowe": akcja.pietro_docelowe,
             })
         return wynik
 
@@ -249,6 +259,7 @@ class AgentStudenta:
 
     def rozpocznij_przejazd_winda(self, tick: int) -> None:
         self.tick_wejscia_do_windy = tick
+        # Po wejściu do windy agent nie stoi już w kolejce.
         self.pozycja_w_kolejce = None
         self.kierunek_kolejki = None
         self.tick_wejscia_do_kolejki = None
@@ -276,8 +287,6 @@ class AgentStudenta:
 
         if pietro_docelowe == self.ustawienia.pietro_parteru:
             self.stan = StanAgenta.POZA_AKADEMIKIEM
-        elif pietro_docelowe == self.pietro_domowe:
-            self.stan = StanAgenta.W_AKADEMIKU
         else:
             self.stan = StanAgenta.W_AKADEMIKU
 
@@ -347,6 +356,7 @@ class AgentStudenta:
                     "typ_akcji": akcja.typ_akcji,
                     "opis": akcja.opis,
                     "czy_losowe": akcja.czy_losowe,
+                    "pietro_docelowe": akcja.pietro_docelowe,
                 }
                 for akcja in self.harmonogram_dnia
             ],
