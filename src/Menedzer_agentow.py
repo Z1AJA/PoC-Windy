@@ -10,6 +10,7 @@ from Loader_planow import RepozytoriumPlanow
 from Silnik_windy import SilnikWindy
 from Kierunki_i_typy import Kierunek, ZrodloZgloszenia
 from Ustawienia_projektu import UstawieniaProjektu
+from Rejestrator_ml import RejestratorObserwacjiML
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,6 +42,8 @@ class MenedzerAgentow:
         self._ostatni_tick_kroku: int = 0
 
         self.log_zdarzen = deque(maxlen=5000)
+        self.rejestrator_ml = RejestratorObserwacjiML()
+        self._ostatni_czas_info: dict | None = None
         self.statystyki = {
             "liczba_wezwan_systemowych": 0,
             "liczba_nacisniec_wezwania": 0,
@@ -96,6 +99,9 @@ class MenedzerAgentow:
             for agent_id, agent in sorted(self.agenci.items())
         }
 
+    def rekordy_ml_obserwowalne(self) -> list[dict]:
+        return self.rejestrator_ml.rekordy_jako_dict()
+
     def _agreguj_metryki(self) -> dict:
         rekordy = []
         for agent in self.agenci.values():
@@ -120,6 +126,7 @@ class MenedzerAgentow:
         sekunda = czas_info["sekunda"]
         tick = czas_info["tick"]
         self._ostatni_tick_kroku = tick
+        self._ostatni_czas_info = dict(czas_info)
 
         if self._dzien_aktywny != nazwa_dnia:
             self.przygotuj_dzien(nazwa_dnia)
@@ -213,6 +220,7 @@ class MenedzerAgentow:
         else:
             self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
 
+        self._zarejestruj_wezwanie_ml(tick=tick, pietro=pietro, kierunek=kierunek)
         self.statystyki["liczba_wezwan_systemowych"] += 1
         self.statystyki["liczba_nacisniec_wezwania"] += 1
         self._zaloguj("reaktywacja_wezwania", {
@@ -249,6 +257,7 @@ class MenedzerAgentow:
             else:
                 self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
 
+            self._zarejestruj_wezwanie_ml(tick=tick, pietro=pietro, kierunek=kierunek)
             self.statystyki["liczba_wezwan_systemowych"] += 1
             self.statystyki["liczba_nacisniec_wezwania"] += 1
             rodzaj_zdarzenia = "nacisniecie_przycisku_wezwania"
@@ -361,6 +370,7 @@ class MenedzerAgentow:
             wybor_juz_aktywny = self._czy_wybor_kabiny_juz_aktywny(pietro_docelowe)
             if not wybor_juz_aktywny:
                 self.silnik_windy.dodaj_wybor_z_kabiny_teraz(pietro_docelowe, ZrodloZgloszenia.CZLOWIEK)
+                self._zarejestruj_wybor_kabiny_ml(tick=tick, pietro_docelowe=pietro_docelowe, kierunek=kierunek)
                 self.statystyki["liczba_nacisniec_wyboru_kabiny"] += 1
                 typ_zdarzenia = "nacisniecie_przycisku_kabiny"
             else:
@@ -391,6 +401,30 @@ class MenedzerAgentow:
         pozycje = self.kolejki.aktualizuj_pozycje_pozostalych(pietro, kierunek)
         for agent_id, pozycja in pozycje.items():
             self.agenci[agent_id].zaktualizuj_pozycje_w_kolejce(pozycja)
+
+    def _zarejestruj_wezwanie_ml(self, *, tick: int, pietro: int, kierunek: str) -> None:
+        if self._ostatni_czas_info is None:
+            return
+        self.rejestrator_ml.zarejestruj_wezwanie_z_pietra(
+            tick=tick,
+            nazwa_dnia=self._ostatni_czas_info["nazwa_dnia"],
+            czas_tekst=self._ostatni_czas_info["czas_tekst"],
+            pietro=pietro,
+            kierunek=kierunek,
+            obciazenie_windy=self.silnik_windy.obciazenie,
+        )
+
+    def _zarejestruj_wybor_kabiny_ml(self, *, tick: int, pietro_docelowe: int, kierunek: str) -> None:
+        if self._ostatni_czas_info is None:
+            return
+        self.rejestrator_ml.zarejestruj_wybor_z_kabiny(
+            tick=tick,
+            nazwa_dnia=self._ostatni_czas_info["nazwa_dnia"],
+            czas_tekst=self._ostatni_czas_info["czas_tekst"],
+            pietro_docelowe=pietro_docelowe,
+            kierunek=kierunek,
+            obciazenie_windy=self.silnik_windy.obciazenie,
+        )
 
     def _zaloguj(self, typ: str, payload: dict) -> None:
         self.log_zdarzen.append({

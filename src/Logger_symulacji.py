@@ -75,6 +75,14 @@ class LoggerSymulacji:
         sciezka.write_text("\n".join(linie), encoding="utf-8")
         return sciezka
 
+    def eksportuj_rekordy_ml_jsonl(self, menedzer, nazwa_pliku: str = "rekordy_ml_obserwowalne.jsonl") -> Path:
+        rekordy = menedzer.rekordy_ml_obserwowalne()
+        sciezka = self.katalog_wyjscia / nazwa_pliku
+        with sciezka.open("w", encoding="utf-8") as f:
+            for rekord in rekordy:
+                f.write(json.dumps(rekord, ensure_ascii=False) + "\n")
+        return sciezka
+
     def eksportuj_probki_jsonl(self, nazwa_pliku: str = "probki_czasowe.jsonl") -> Path:
         sciezka = self.katalog_wyjscia / nazwa_pliku
         with sciezka.open("w", encoding="utf-8") as f:

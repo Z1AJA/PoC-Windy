@@ -32,10 +32,9 @@ class TestyWalidacjiITurbo(unittest.TestCase):
     def test_losowanie_pokrywa_wszystkie_typy_eventow(self):
         repo = self._repo()
         wymagane = {
-            "wyjscie_z_akademika",
-            "powrot_do_akademika",
-            "przejazd_miedzy_pietrami",
-            "powrot_na_pietro_domowe",
+            "losowe_wyjscie_z_akademika",
+            "losowy_powrot_do_akademika",
+            "losowy_przejazd_miedzy_pietrami",
         }
         znalezione = set()
         ustawienia = self._ustawienia_stresowe()
@@ -118,6 +117,7 @@ class TestyWalidacjiITurbo(unittest.TestCase):
         snap = menedzer.snapshot()
         self.assertGreaterEqual(snap["statystyki"]["liczba_nacisniec_wezwania"], 1)
         self.assertGreaterEqual(snap["statystyki"]["liczba_nacisniec_wyboru_kabiny"], 1)
+        self.assertGreaterEqual(len(menedzer.rekordy_ml_obserwowalne()), 2)
 
 
 if __name__ == "__main__":

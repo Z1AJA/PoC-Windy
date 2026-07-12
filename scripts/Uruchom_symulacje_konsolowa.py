@@ -52,6 +52,7 @@ def main() -> None:
             if ostatni_eksport_dnia != czas_info["nazwa_dnia"]:
                 logger.eksportuj_plany_dnia_json(menedzer)
                 logger.eksportuj_plany_dnia_txt(menedzer)
+                logger.eksportuj_rekordy_ml_jsonl(menedzer)
                 ostatni_eksport_dnia = czas_info["nazwa_dnia"]
 
             if czas_info["sekunda"] == 0:
@@ -78,6 +79,7 @@ def main() -> None:
     except KeyboardInterrupt:
         logger.eksportuj_probki_jsonl()
         logger.eksportuj_zdarzenia_jsonl()
+        logger.eksportuj_rekordy_ml_jsonl(menedzer)
         wyczysc_ekran()
         print("Symulacja zatrzymana przez użytkownika.")
         print("Wyeksportowano debug do outputs/Debug_output.")
