@@ -259,7 +259,7 @@ class AgentStudenta:
 
     def rozpocznij_przejazd_winda(self, tick: int) -> None:
         self.tick_wejscia_do_windy = tick
-        # Po wejściu do windy agent nie stoi już w kolejce.
+        # Agent po wejściu do windy nie stoi już w kolejce.
         self.pozycja_w_kolejce = None
         self.kierunek_kolejki = None
         self.tick_wejscia_do_kolejki = None
