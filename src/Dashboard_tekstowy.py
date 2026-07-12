@@ -42,6 +42,7 @@ def renderuj_dashboard(
     snapshot_windy: dict,
     snapshot_menedzera: dict,
     zdarzenia: list[dict],
+    snapshot_energii: dict | None = None,
 ) -> str:
     szer = shutil.get_terminal_size((180, 55)).columns
     panel_w = max(60, (szer - 6) // 2)
@@ -97,7 +98,6 @@ def renderuj_dashboard(
         f"- przejazdy windą: {metryki['liczba_przejazdow_winda']}",
         f"- śr. czekanie tick: {metryki['sredni_czas_oczekiwania_tick']}",
         f"- śr. przejazd tick: {metryki['sredni_czas_przejazdu_tick']}",
-        f"- rekordy ML: {snapshot_menedzera.get('liczba_rekordow_ml', 0)}",
     ])
 
     akcje_linie = []
@@ -117,6 +117,20 @@ def renderuj_dashboard(
             akcje_linie.append(f"  -> {akcja['czas']} | {akcja['typ_akcji']}{znacznik}")
     if not akcje_linie:
         akcje_linie.append("Brak agentów.")
+
+    if snapshot_energii is None:
+        energia_linie = ["Brak danych energetycznych."]
+    else:
+        energia_linie = [
+            f"E. całkowita: {snapshot_energii['energia_calkowita']}",
+            f"E. rozruchów: {snapshot_energii['energia_rozruchow']}",
+            f"E. jazdy: {snapshot_energii['energia_jazdy']}",
+            f"E. postoju: {snapshot_energii['energia_postoju']}",
+            "",
+            f"Rozruchy: {snapshot_energii['liczba_rozruchow']}",
+            f"Piętra przejechane: {snapshot_energii['liczba_przejazdow_miedzy_pietrami']}",
+            f"Ticki postoju: {snapshot_energii['liczba_tickow_postoju']}",
+        ]
 
     event_lines = []
     for event in zdarzenia[-10:]:
@@ -138,6 +152,8 @@ def renderuj_dashboard(
         _panel("Agenci / statystyki / metryki", agenci_linie, panel_w, panel_h_mid),
         _panel("Najbliższe akcje agentów", akcje_linie, panel_w, panel_h_mid),
     )
-    bottom = _panel("Zdarzenia systemu", event_lines, panel_w * 2 + 2, panel_h_bottom)
+    energy_panel = _panel("Energia", energia_linie, panel_w, 12)
+    events_panel = _panel("Zdarzenia systemu", event_lines, panel_w, 12)
+    bottom = _polacz_poziomo(energy_panel, events_panel)
 
     return "\n".join(top + [""] + middle + [""] + bottom)
