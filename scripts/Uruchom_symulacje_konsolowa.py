@@ -27,7 +27,7 @@ def main() -> None:
     )
     winda = SilnikWindy(parametry=parametry)
     monitor_energii = MonitorEnergiiWindy()
-    czas = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=7 * 3600 + 30 * 60)
+    czas = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600 + 30 * 60)
 
     menedzer = MenedzerAgentow(repo, winda, ustawienia)
     logger = LoggerSymulacji(Path(__file__).resolve().parent.parent / "outputs" / "Debug_output")

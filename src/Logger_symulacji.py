@@ -63,8 +63,12 @@ class LoggerSymulacji:
             linie.append("harmonogram_dnia:")
             for akcja in agent.get("harmonogram_dnia", []):
                 znacznik = " [LOSOWE]" if akcja.get("czy_losowe") else ""
+                start = akcja.get("pietro_startowe_symulowane")
+                cel = akcja.get("pietro_docelowe")
+                trasa = f" | P{start} -> P{cel}" if start is not None and cel is not None else ""
+                etykieta = akcja.get("etykieta", akcja["typ_akcji"])
                 linie.append(
-                    f"  - {akcja['czas']} | {akcja['typ_akcji']} | {akcja['opis']}{znacznik}"
+                    f"  - {akcja['czas']} | {etykieta}{trasa} | {akcja['opis']}{znacznik}"
                 )
             linie.append("")
         sciezka = self.katalog_wyjscia / nazwa_pliku

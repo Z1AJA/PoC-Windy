@@ -57,15 +57,10 @@ class AgentStudenta:
     def __post_init__(self) -> None:
         if self.pietro_domowe < 0:
             raise ValueError("pietro_domowe nie może być ujemne")
-
         if self.aktualne_pietro is None:
             self.aktualne_pietro = self.pietro_domowe
-
         self._generator = random.Random(self.seed_agenta)
-        self._zaloguj("inicjalizacja", {
-            "pietro_domowe": self.pietro_domowe,
-            "seed_agenta": self.seed_agenta,
-        })
+        self._zaloguj("inicjalizacja", {"pietro_domowe": self.pietro_domowe, "seed_agenta": self.seed_agenta})
 
     @property
     def czy_jest_w_akademiku(self) -> bool:
@@ -125,18 +120,48 @@ class AgentStudenta:
             self.indeks_nastepnej_akcji += 1
         return akcje
 
-    def nastepne_akcje(self, limit: int = 3) -> list[dict]:
+    def _docelowe_pietro_dla_akcji(self, akcja: AkcjaDniaAgenta) -> int:
+        if akcja.pietro_docelowe is not None:
+            return akcja.pietro_docelowe
+        if akcja.typ_akcji in {"wyjazd_na_zajecia", "losowe_wyjscie_z_akademika"}:
+            return self.ustawienia.pietro_parteru
+        if akcja.typ_akcji in {"powrot_z_zajec", "losowy_powrot_do_akademika", "powrot_na_pietro_domowe"}:
+            return self.pietro_domowe
+        return self.pietro_domowe
+
+    def _etykieta_akcji(self, akcja: AkcjaDniaAgenta) -> str:
+        mapping = {
+            "wyjazd_na_zajecia": "Wyjazd na zajęcia",
+            "powrot_z_zajec": "Powrót z zajęć",
+            "losowe_wyjscie_z_akademika": "Losowe wyjście z akademika",
+            "losowy_powrot_do_akademika": "Losowy powrót do akademika",
+            "losowy_przejazd_miedzy_pietrami": "Losowy przejazd między piętrami",
+            "powrot_na_pietro_domowe": "Powrót na piętro domowe",
+        }
+        return mapping.get(akcja.typ_akcji, akcja.typ_akcji)
+
+    def _serializuj_akcje_z_projekcja(self, akcje: list[AkcjaDniaAgenta], startowe_pietro: int) -> list[dict]:
         wynik = []
-        for akcja in self.harmonogram_dnia[self.indeks_nastepnej_akcji:self.indeks_nastepnej_akcji + limit]:
+        aktualne_pietro = startowe_pietro
+        for akcja in akcje:
+            docelowe = self._docelowe_pietro_dla_akcji(akcja)
             wynik.append({
                 "minuta": akcja.minuta,
                 "czas": akcja.minuta_hhmm(),
                 "typ_akcji": akcja.typ_akcji,
+                "etykieta": self._etykieta_akcji(akcja),
                 "opis": akcja.opis,
                 "czy_losowe": akcja.czy_losowe,
-                "pietro_docelowe": akcja.pietro_docelowe,
+                "pietro_startowe_symulowane": aktualne_pietro,
+                "pietro_docelowe": docelowe,
             })
+            aktualne_pietro = docelowe
         return wynik
+
+    def nastepne_akcje(self, limit: int = 3) -> list[dict]:
+        startowe = self.aktualne_pietro if self.aktualne_pietro is not None else self.pietro_domowe
+        akcje = self.harmonogram_dnia[self.indeks_nastepnej_akcji:self.indeks_nastepnej_akcji + limit]
+        return self._serializuj_akcje_z_projekcja(akcje, startowe)
 
     def dolacz_do_kolejki(
         self,
@@ -149,7 +174,6 @@ class AgentStudenta:
     ) -> None:
         if kierunek not in {"dol", "gora"}:
             raise ValueError("kierunek musi być równy 'dol' albo 'gora'")
-
         self.pozycja_w_kolejce = pozycja
         self.kierunek_kolejki = kierunek
         self.tick_wejscia_do_kolejki = tick
@@ -159,12 +183,7 @@ class AgentStudenta:
         self.cel_biezacego_przejazdu = cel_pietro
         self.typ_biezacej_akcji = typ_akcji
         self.czy_biezaca_akcja_losowa = czy_losowe
-
-        if kierunek == "dol":
-            self.stan = StanAgenta.CZEKA_NA_WINDE_W_DOL
-        else:
-            self.stan = StanAgenta.CZEKA_NA_WINDE_W_GORE
-
+        self.stan = StanAgenta.CZEKA_NA_WINDE_W_DOL if kierunek == "dol" else StanAgenta.CZEKA_NA_WINDE_W_GORE
         self._zaloguj("dolaczono_do_kolejki", {
             "kierunek": kierunek,
             "tick": tick,
@@ -179,41 +198,28 @@ class AgentStudenta:
         self._zaloguj("aktualizacja_pozycji_w_kolejce", {"pozycja": pozycja})
 
     def opusc_kolejke(self) -> None:
-        self._zaloguj("opuszczono_kolejke", {
-            "pozycja": self.pozycja_w_kolejce,
-            "kierunek": self.kierunek_kolejki,
-        })
+        self._zaloguj("opuszczono_kolejke", {"pozycja": self.pozycja_w_kolejce, "kierunek": self.kierunek_kolejki})
         self.pozycja_w_kolejce = None
         self.kierunek_kolejki = None
         self.tick_wejscia_do_kolejki = None
 
     def czy_rezygnuje_i_idzie_schodami(self, aktualny_tick: int) -> bool:
-        if not self.czy_czeka_w_kolejce:
+        if not self.czy_czeka_w_kolejce or self.kierunek_kolejki is None:
             return False
-        if self.kierunek_kolejki is None:
-            return False
-
         self._aktualny_tick_pomocniczy = aktualny_tick
         ticki_czekania = self.ticki_oczekiwania_w_kolejce
-
         prawdopodobienstwo = self.ustawienia.prawdopodobienstwo_rezygnacji_schodami(
             pietro=self.aktualne_pietro or self.pietro_domowe,
             kierunek=self.kierunek_kolejki,
             ticki_czekania=ticki_czekania,
         )
         los = self._generator.random()
-
         if los <= prawdopodobienstwo:
             kierunek = self.kierunek_kolejki
             self.liczba_ghost_calli += 1
             self.liczba_rezygnacji_na_schody += 1
             self.opusc_kolejke()
-
-            if kierunek == "dol":
-                self.stan = StanAgenta.IDZIE_SCHODAMI_W_DOL
-            else:
-                self.stan = StanAgenta.IDZIE_SCHODAMI_W_GORE
-
+            self.stan = StanAgenta.IDZIE_SCHODAMI_W_DOL if kierunek == "dol" else StanAgenta.IDZIE_SCHODAMI_W_GORE
             self._zaloguj("rezygnacja_na_schody", {
                 "tick": aktualny_tick,
                 "los": round(los, 6),
@@ -221,21 +227,18 @@ class AgentStudenta:
                 "kierunek": kierunek,
             })
             return True
-
         return False
 
     def zakoncz_przejscie_schodami(self, tick: int) -> None:
         oczekiwanie = None
         if self.tick_rozpoczecia_biezacego_oczekiwania is not None:
             oczekiwanie = tick - self.tick_rozpoczecia_biezacego_oczekiwania
-
         if self.stan == StanAgenta.IDZIE_SCHODAMI_W_DOL:
             self.aktualne_pietro = self.ustawienia.pietro_parteru
             self.stan = StanAgenta.POZA_AKADEMIKIEM
         elif self.stan == StanAgenta.IDZIE_SCHODAMI_W_GORE:
             self.aktualne_pietro = self.pietro_domowe
             self.stan = StanAgenta.W_AKADEMIKU
-
         self.historia_przejazdow.append({
             "typ_zakonczenia": "schody",
             "tick_start_oczekiwania": self.tick_rozpoczecia_biezacego_oczekiwania,
@@ -248,48 +251,34 @@ class AgentStudenta:
             "typ_akcji": self.typ_biezacej_akcji,
             "czy_losowe": self.czy_biezaca_akcja_losowa,
         })
-
-        self._zaloguj("zakonczono_schody", {
-            "stan_po": self.stan.name,
-            "aktualne_pietro": self.aktualne_pietro,
-            "tick": tick,
-        })
-
+        self._zaloguj("zakonczono_schody", {"stan_po": self.stan.name, "aktualne_pietro": self.aktualne_pietro, "tick": tick})
         self._wyczysc_biezaca_sciezke()
 
     def rozpocznij_przejazd_winda(self, tick: int) -> None:
         self.tick_wejscia_do_windy = tick
-        # Agent po wejściu do windy nie stoi już w kolejce.
         self.pozycja_w_kolejce = None
         self.kierunek_kolejki = None
         self.tick_wejscia_do_kolejki = None
         self.stan = StanAgenta.JEDZIE_WINDA
-        self._zaloguj("rozpoczecie_przejazdu_winda", {
-            "cel_pietro": self.cel_pietro,
-            "tick": tick,
-        })
+        self._zaloguj("rozpoczecie_przejazdu_winda", {"cel_pietro": self.cel_pietro, "tick": tick})
 
     def zakoncz_przejazd(self, pietro_docelowe: int, tick: int) -> None:
         czas_oczekiwania = None
         czas_przejazdu = None
         czas_calkowity = None
-
         if self.tick_rozpoczecia_biezacego_oczekiwania is not None:
             czas_calkowity = tick - self.tick_rozpoczecia_biezacego_oczekiwania
         if self.tick_rozpoczecia_biezacego_oczekiwania is not None and self.tick_wejscia_do_windy is not None:
             czas_oczekiwania = self.tick_wejscia_do_windy - self.tick_rozpoczecia_biezacego_oczekiwania
         if self.tick_wejscia_do_windy is not None:
             czas_przejazdu = tick - self.tick_wejscia_do_windy
-
         self.aktualne_pietro = pietro_docelowe
         self.cel_pietro = None
         self.opusc_kolejke()
-
         if pietro_docelowe == self.ustawienia.pietro_parteru:
             self.stan = StanAgenta.POZA_AKADEMIKIEM
         else:
             self.stan = StanAgenta.W_AKADEMIKU
-
         self.historia_przejazdow.append({
             "typ_zakonczenia": "winda",
             "tick_start_oczekiwania": self.tick_rozpoczecia_biezacego_oczekiwania,
@@ -303,7 +292,6 @@ class AgentStudenta:
             "typ_akcji": self.typ_biezacej_akcji,
             "czy_losowe": self.czy_biezaca_akcja_losowa,
         })
-
         self._zaloguj("zakonczenie_przejazdu", {
             "pietro_docelowe": pietro_docelowe,
             "stan_po": self.stan.name,
@@ -312,19 +300,16 @@ class AgentStudenta:
             "czas_przejazdu_tick": czas_przejazdu,
             "czas_calkowity_tick": czas_calkowity,
         })
-
         self._wyczysc_biezaca_sciezke()
 
     def statystyki_przejazdow(self) -> dict:
         rekordy_winda = [r for r in self.historia_przejazdow if r["typ_zakonczenia"] == "winda"]
         rekordy_schody = [r for r in self.historia_przejazdow if r["typ_zakonczenia"] == "schody"]
-
         def srednia(lista, pole):
             wartosci = [x[pole] for x in lista if x.get(pole) is not None]
             if not wartosci:
                 return None
             return sum(wartosci) / len(wartosci)
-
         return {
             "liczba_przejazdow_winda": len(rekordy_winda),
             "liczba_rezygnacji_schody": len(rekordy_schody),
@@ -349,17 +334,7 @@ class AgentStudenta:
                 }
                 for decyzja in self.decyzje_dnia
             ],
-            "harmonogram_dnia": [
-                {
-                    "minuta": akcja.minuta,
-                    "czas": akcja.minuta_hhmm(),
-                    "typ_akcji": akcja.typ_akcji,
-                    "opis": akcja.opis,
-                    "czy_losowe": akcja.czy_losowe,
-                    "pietro_docelowe": akcja.pietro_docelowe,
-                }
-                for akcja in self.harmonogram_dnia
-            ],
+            "harmonogram_dnia": self._serializuj_akcje_z_projekcja(self.harmonogram_dnia, self.pietro_domowe),
             "nastepne_akcje": self.nastepne_akcje(5),
         }
 
@@ -393,7 +368,4 @@ class AgentStudenta:
         self.czy_biezaca_akcja_losowa = False
 
     def _zaloguj(self, typ: str, payload: dict) -> None:
-        self.log_zdarzen.append({
-            "typ": typ,
-            "payload": payload,
-        })
+        self.log_zdarzen.append({"typ": typ, "payload": payload})

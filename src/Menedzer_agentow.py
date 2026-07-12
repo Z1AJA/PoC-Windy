@@ -147,7 +147,7 @@ class MenedzerAgentow:
                     "pietro_docelowe": akcja.pietro_docelowe,
                 })
 
-                if akcja.typ_akcji == "wyjscie_z_akademika" and agent.stan == StanAgenta.W_AKADEMIKU:
+                if akcja.typ_akcji in {"wyjazd_na_zajecia", "losowe_wyjscie_z_akademika"} and agent.stan == StanAgenta.W_AKADEMIKU:
                     self._dolacz_agenta_do_kolejki(
                         agent=agent,
                         kierunek="dol",
@@ -157,7 +157,7 @@ class MenedzerAgentow:
                         czy_losowe=akcja.czy_losowe,
                     )
 
-                elif akcja.typ_akcji == "powrot_do_akademika" and agent.stan == StanAgenta.POZA_AKADEMIKIEM:
+                elif akcja.typ_akcji in {"powrot_z_zajec", "losowy_powrot_do_akademika"} and agent.stan == StanAgenta.POZA_AKADEMIKIEM:
                     agent.aktualne_pietro = self.ustawienia.pietro_parteru
                     self._dolacz_agenta_do_kolejki(
                         agent=agent,
@@ -168,7 +168,7 @@ class MenedzerAgentow:
                         czy_losowe=akcja.czy_losowe,
                     )
 
-                elif akcja.typ_akcji == "przejazd_miedzy_pietrami" and agent.stan == StanAgenta.W_AKADEMIKU and akcja.pietro_docelowe is not None:
+                elif akcja.typ_akcji == "losowy_przejazd_miedzy_pietrami" and agent.stan == StanAgenta.W_AKADEMIKU and akcja.pietro_docelowe is not None:
                     if agent.aktualne_pietro is None or agent.aktualne_pietro == akcja.pietro_docelowe:
                         continue
                     kierunek = "gora" if akcja.pietro_docelowe > agent.aktualne_pietro else "dol"

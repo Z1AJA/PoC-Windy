@@ -77,7 +77,6 @@ def renderuj_dashboard(
     stany = snapshot_menedzera["stany_agentow"]
     stats = snapshot_menedzera["statystyki"]
     metryki = snapshot_menedzera["metryki_zbiorcze"]
-    liczba_nacisniec_wezwania = stats.get("liczba_nacisniec_wezwania", stats.get("liczba_nacisniec_agentowych", 0))
     agenci_linie = [
         f"Liczba agentów: {snapshot_menedzera['liczba_agentow']}",
         f"W windzie: {snapshot_menedzera['liczba_agentow_w_windzie']}",
@@ -89,7 +88,7 @@ def renderuj_dashboard(
     agenci_linie.extend([
         "",
         "Statystyki:",
-        f"- wezwania ludzkie (agenci): {liczba_nacisniec_wezwania}",
+        f"- naciśnięcia wezwania: {stats.get('liczba_nacisniec_wezwania', stats.get('liczba_nacisniec_agentowych', 0))}",
         f"- wejścia do windy: {stats['liczba_wejsc_do_windy']}",
         f"- wyjścia z windy: {stats['liczba_wyjsc_z_windy']}",
         f"- ghost calle: {stats['liczba_ghost_calli']}",
@@ -115,7 +114,11 @@ def renderuj_dashboard(
         akcje_linie.append(f"{agent['id_agenta']} | {agent['stan']} | P{agent['aktualne_pietro']}")
         for akcja in agent.get("nastepne_akcje", [])[:2]:
             znacznik = " [L]" if akcja.get("czy_losowe") else ""
-            akcje_linie.append(f"  -> {akcja['czas']} | {akcja['typ_akcji']}{znacznik}")
+            start = akcja.get("pietro_startowe_symulowane")
+            cel = akcja.get("pietro_docelowe")
+            trasa = f" P{start}->P{cel}" if start is not None and cel is not None else ""
+            etykieta = akcja.get("etykieta", akcja['typ_akcji'])
+            akcje_linie.append(f"  -> {akcja['czas']} | {etykieta}{trasa}{znacznik}")
     if not akcje_linie:
         akcje_linie.append("Brak agentów.")
 

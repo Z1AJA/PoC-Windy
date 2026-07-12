@@ -114,24 +114,26 @@ def zbuduj_plan_dnia_agenta(
 
 
 def _okna_pobytu_w_akademiku(
-    akcje_bazowe: list[AkcjaDniaAgenta],
+    akcje: list[AkcjaDniaAgenta],
     najwczesniej: int,
     najpozniej: int,
 ) -> list[tuple[int, int]]:
     wynik = []
-    akcje = sorted(akcje_bazowe, key=lambda a: (a.minuta, a.typ_akcji))
+    akcje = sorted(akcje, key=lambda a: (a.minuta, a.typ_akcji))
     jest_w_akademiku = True
     start_okna = 0
 
+    typy_wyjsc_z_akademika = {"wyjazd_na_zajecia", "losowe_wyjscie_z_akademika"}
+    typy_powrotow_do_akademika = {"powrot_z_zajec", "losowy_powrot_do_akademika"}
+
     for akcja in akcje:
-        if jest_w_akademiku and akcja.typ_akcji == "wyjscie_z_akademika":
+        if jest_w_akademiku and akcja.typ_akcji in typy_wyjsc_z_akademika:
             ok_start = max(start_okna, najwczesniej)
             ok_end = min(akcja.minuta, najpozniej)
             if ok_end > ok_start:
                 wynik.append((ok_start, ok_end))
             jest_w_akademiku = False
-
-        elif not jest_w_akademiku and akcja.typ_akcji == "powrot_do_akademika":
+        elif not jest_w_akademiku and akcja.typ_akcji in typy_powrotow_do_akademika:
             start_okna = akcja.minuta
             jest_w_akademiku = True
 
@@ -171,12 +173,14 @@ def _akcje_losowe_poza_akademikiem(
     najwczesniejsza_minuta_losowych_akcji: int,
     najpozniejsza_minuta_losowych_akcji: int,
     minimalny_odstep_od_innych_akcji_minuty: int,
+    pietro_domowe: int,
+    pietro_parteru: int,
 ) -> list[AkcjaDniaAgenta]:
     if generator.random() > prawdopodobienstwo_losowego_cyklu_dnia:
         return []
 
     okna = _okna_pobytu_w_akademiku(
-        akcje_bazowe=akcje_bazowe,
+        akcje=akcje_bazowe,
         najwczesniej=najwczesniejsza_minuta_losowych_akcji,
         najpozniej=najpozniejsza_minuta_losowych_akcji,
     )
@@ -209,15 +213,17 @@ def _akcje_losowe_poza_akademikiem(
 
         wynik.append(AkcjaDniaAgenta(
             minuta=minuta_wyjscia,
-            typ_akcji="wyjscie_z_akademika",
-            opis="Losowe wyjście z akademika",
+            typ_akcji="losowe_wyjscie_z_akademika",
+            opis=f"Losowe wyjście z akademika na parter P{pietro_parteru}",
             czy_losowe=True,
+            pietro_docelowe=pietro_parteru,
         ))
         wynik.append(AkcjaDniaAgenta(
             minuta=minuta_powrotu,
-            typ_akcji="powrot_do_akademika",
-            opis="Losowy powrót do akademika",
+            typ_akcji="losowy_powrot_do_akademika",
+            opis=f"Losowy powrót do akademika na piętro domowe P{pietro_domowe}",
             czy_losowe=True,
+            pietro_docelowe=pietro_domowe,
         ))
         wykorzystane += 1
 
@@ -226,7 +232,7 @@ def _akcje_losowe_poza_akademikiem(
 
 def _akcje_losowych_przejazdow_wewnatrz_akademika(
     generator: random.Random,
-    akcje_bazowe: list[AkcjaDniaAgenta],
+    akcje_istniejace: list[AkcjaDniaAgenta],
     prawdopodobienstwo_losowego_przejazdu_wewnatrz_akademika: float,
     minimalna_liczba_przejazdow_wewnatrz: int,
     maksymalna_liczba_przejazdow_wewnatrz: int,
@@ -244,7 +250,7 @@ def _akcje_losowych_przejazdow_wewnatrz_akademika(
         return []
 
     okna = _okna_pobytu_w_akademiku(
-        akcje_bazowe=akcje_bazowe,
+        akcje=akcje_istniejace,
         najwczesniej=najwczesniejsza_minuta_losowych_akcji,
         najpozniej=najpozniejsza_minuta_losowych_akcji,
     )
@@ -261,7 +267,7 @@ def _akcje_losowych_przejazdow_wewnatrz_akademika(
         if wykorzystane >= liczba_przejazdow:
             break
 
-        maks_czas_pobytu = min(max_czas_na_innym_pietrze_minuty, okno_end - okno_start - 2 * minimalny_odstep_od_innych_akcji_minuty)
+        maks_czas_pobytu = min(max_czas_na_innym_pietrze_minuty, okno_end - okno_start - minimalny_odstep_od_innych_akcji_minuty)
         if maks_czas_pobytu < min_czas_na_innym_pietrze_minuty:
             continue
 
@@ -275,29 +281,19 @@ def _akcje_losowych_przejazdow_wewnatrz_akademika(
         if pietro_docelowe is None:
             continue
 
-        czas_pobytu = generator.randint(min_czas_na_innym_pietrze_minuty, maks_czas_pobytu)
-        najpozniejszy_start = okno_end - czas_pobytu - minimalny_odstep_od_innych_akcji_minuty
+        najpozniejszy_start = okno_end - minimalny_odstep_od_innych_akcji_minuty
         najwczesniejszy_start = okno_start + minimalny_odstep_od_innych_akcji_minuty
-
         if najpozniejszy_start <= najwczesniejszy_start:
             continue
 
         minuta_startu = generator.randint(najwczesniejszy_start, najpozniejszy_start)
-        minuta_powrotu = minuta_startu + czas_pobytu
 
         wynik.append(AkcjaDniaAgenta(
             minuta=minuta_startu,
-            typ_akcji="przejazd_miedzy_pietrami",
-            opis=f"Losowy przejazd na piętro {pietro_docelowe}",
+            typ_akcji="losowy_przejazd_miedzy_pietrami",
+            opis=f"Losowy przejazd wewnątrz akademika na piętro P{pietro_docelowe}",
             czy_losowe=True,
             pietro_docelowe=pietro_docelowe,
-        ))
-        wynik.append(AkcjaDniaAgenta(
-            minuta=minuta_powrotu,
-            typ_akcji="powrot_na_pietro_domowe",
-            opis=f"Powrót na piętro domowe {pietro_domowe}",
-            czy_losowe=True,
-            pietro_docelowe=pietro_domowe,
         ))
         wykorzystane += 1
 
@@ -337,9 +333,10 @@ def zbuduj_harmonogram_przejazdow_agenta(
         akcje_bazowe.append(
             AkcjaDniaAgenta(
                 minuta=max(0, pierwszy.blok.minuta_startu - bufor_wyjscia_przed_zajeciami_minuty),
-                typ_akcji="wyjscie_z_akademika",
-                opis=f"Wyjście na blok: {pierwszy.blok.nazwa}",
+                typ_akcji="wyjazd_na_zajecia",
+                opis=f"Wyjazd na blok: {pierwszy.blok.nazwa} (na parter P{pietro_parteru})",
                 czy_losowe=False,
+                pietro_docelowe=pietro_parteru,
             )
         )
 
@@ -349,17 +346,19 @@ def zbuduj_harmonogram_przejazdow_agenta(
                 akcje_bazowe.append(
                     AkcjaDniaAgenta(
                         minuta=obecny.blok.minuta_konca,
-                        typ_akcji="powrot_do_akademika",
-                        opis=f"Powrót po bloku: {obecny.blok.nazwa}",
+                        typ_akcji="powrot_z_zajec",
+                        opis=f"Powrót z zajęć po bloku: {obecny.blok.nazwa} (na piętro domowe P{pietro_domowe})",
                         czy_losowe=False,
+                        pietro_docelowe=pietro_domowe,
                     )
                 )
                 akcje_bazowe.append(
                     AkcjaDniaAgenta(
                         minuta=max(0, nastepny.blok.minuta_startu - bufor_wyjscia_przed_zajeciami_minuty),
-                        typ_akcji="wyjscie_z_akademika",
-                        opis=f"Wyjście na blok: {nastepny.blok.nazwa}",
+                        typ_akcji="wyjazd_na_zajecia",
+                        opis=f"Wyjazd na blok: {nastepny.blok.nazwa} (na parter P{pietro_parteru})",
                         czy_losowe=False,
+                        pietro_docelowe=pietro_parteru,
                     )
                 )
 
@@ -367,9 +366,10 @@ def zbuduj_harmonogram_przejazdow_agenta(
         akcje_bazowe.append(
             AkcjaDniaAgenta(
                 minuta=ostatni.blok.minuta_konca,
-                typ_akcji="powrot_do_akademika",
-                opis=f"Powrót po ostatnim bloku: {ostatni.blok.nazwa}",
+                typ_akcji="powrot_z_zajec",
+                opis=f"Powrót z zajęć po ostatnim bloku: {ostatni.blok.nazwa} (na piętro domowe P{pietro_domowe})",
                 czy_losowe=False,
+                pietro_docelowe=pietro_domowe,
             )
         )
 
@@ -384,11 +384,13 @@ def zbuduj_harmonogram_przejazdow_agenta(
         najwczesniejsza_minuta_losowych_akcji=najwczesniejsza_minuta_losowych_akcji,
         najpozniejsza_minuta_losowych_akcji=najpozniejsza_minuta_losowych_akcji,
         minimalny_odstep_od_innych_akcji_minuty=minimalny_odstep_od_innych_akcji_minuty,
+        pietro_domowe=pietro_domowe,
+        pietro_parteru=pietro_parteru,
     )
 
     akcje_losowe_wewnatrz = _akcje_losowych_przejazdow_wewnatrz_akademika(
         generator=generator,
-        akcje_bazowe=akcje_bazowe,
+        akcje_istniejace=akcje_bazowe + akcje_losowe_poza,
         prawdopodobienstwo_losowego_przejazdu_wewnatrz_akademika=prawdopodobienstwo_losowego_przejazdu_wewnatrz_akademika,
         minimalna_liczba_przejazdow_wewnatrz=minimalna_liczba_przejazdow_wewnatrz,
         maksymalna_liczba_przejazdow_wewnatrz=maksymalna_liczba_przejazdow_wewnatrz,

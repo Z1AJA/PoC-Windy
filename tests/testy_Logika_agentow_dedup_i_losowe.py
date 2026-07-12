@@ -1,4 +1,5 @@
-from _bootstrap_paths import ROOT  # noqa: F401
+from _bootstrap_paths import *  # noqa: F401,F403
+
 import random
 import unittest
 
@@ -42,30 +43,25 @@ class TestyLogikiAgentowDedupILosowe(unittest.TestCase):
     def test_tylko_pierwszy_agent_naciska_wezwanie(self):
         menedzer = self._stworz_menedzera()
         agenci = list(menedzer.agenci.values())
-
-        menedzer._dolacz_agenta_do_kolejki(agenci[0], "dol", tick=1, cel_pietro=0, typ_akcji="wyjscie_z_akademika", czy_losowe=False)
-        menedzer._dolacz_agenta_do_kolejki(agenci[1], "dol", tick=2, cel_pietro=0, typ_akcji="wyjscie_z_akademika", czy_losowe=False)
-
+        menedzer._dolacz_agenta_do_kolejki(agenci[0], "dol", tick=1, cel_pietro=0, typ_akcji="wyjazd_na_zajecia", czy_losowe=False)
+        menedzer._dolacz_agenta_do_kolejki(agenci[1], "dol", tick=2, cel_pietro=0, typ_akcji="wyjazd_na_zajecia", czy_losowe=False)
         self.assertEqual(menedzer.statystyki["liczba_nacisniec_wezwania"], 1)
         self.assertEqual(menedzer.statystyki["liczba_dolaczen_do_istniejacego_wezwania"], 1)
 
     def test_tylko_pierwszy_agent_wybiera_pietro_w_kabinie(self):
         menedzer = self._stworz_menedzera()
         agenci = list(menedzer.agenci.values())
-
-        menedzer._dolacz_agenta_do_kolejki(agenci[0], "dol", tick=1, cel_pietro=0, typ_akcji="wyjscie_z_akademika", czy_losowe=False)
-        menedzer._dolacz_agenta_do_kolejki(agenci[1], "dol", tick=2, cel_pietro=0, typ_akcji="wyjscie_z_akademika", czy_losowe=False)
+        menedzer._dolacz_agenta_do_kolejki(agenci[0], "dol", tick=1, cel_pietro=0, typ_akcji="wyjazd_na_zajecia", czy_losowe=False)
+        menedzer._dolacz_agenta_do_kolejki(agenci[1], "dol", tick=2, cel_pietro=0, typ_akcji="wyjazd_na_zajecia", czy_losowe=False)
         menedzer.silnik_windy.aktualne_pietro = 4
         menedzer.silnik_windy.czy_stoi_na_przystanku = True
-
         menedzer._wpusc_agentow_do_windy(4, tick=10)
-
         self.assertEqual(menedzer.statystyki["liczba_nacisniec_wyboru_kabiny"], 1)
         self.assertEqual(menedzer.statystyki["liczba_dolaczen_do_istniejacego_wyboru_kabiny"], 1)
 
-    def test_losowe_akcje_moga_zawierac_przejazd_miedzy_pietrami(self):
+    def test_losowe_akcje_moga_zawierac_przejazd_miedzy_pietrami_bez_powrotu(self):
         plan = self._stworz_plan()
-        decyzje, akcje = zbuduj_harmonogram_przejazdow_agenta(
+        _, akcje = zbuduj_harmonogram_przejazdow_agenta(
             plan=plan,
             dzien="poniedzialek",
             generator=random.Random(123),
@@ -78,11 +74,9 @@ class TestyLogikiAgentowDedupILosowe(unittest.TestCase):
             maksymalne_pietro_losowych_przejazdow_wewnatrz=10,
             pietro_parteru=0,
         )
-
         typy = [a.typ_akcji for a in akcje]
-        self.assertIn("przejazd_miedzy_pietrami", typy)
-        self.assertIn("powrot_na_pietro_domowe", typy)
-
+        self.assertIn("losowy_przejazd_miedzy_pietrami", typy)
+        self.assertNotIn("powrot_na_pietro_domowe", typy)
 
 if __name__ == "__main__":
     unittest.main()
