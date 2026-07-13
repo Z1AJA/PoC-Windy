@@ -1,6 +1,12 @@
 import tkinter as tk
 from tkinter import ttk
 from pathlib import Path
+import matplotlib
+matplotlib.use("TkAgg")
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from datetime import datetime
+import tkinter.messagebox as messagebox
 
 from Konfiguracja_windy import ParametryWindy
 from Silnik_windy import SilnikWindy
@@ -54,6 +60,15 @@ class SymulatorWindyGUI:
         self.after_id = None
         self.predkosc = 1.0  # mnożnik prędkości (1x, 2x, 5x, 10x)
         self.interwal_ms = self.BAZOWY_INTERWAL_MS  # aktualne opóźnienie
+
+        # Historia do wykresów końcowych
+        self.historia_tick = []
+        self.historia_czas = []              # string "HH:MM"
+        self.historia_czas_oczekiwania = []
+        self.historia_liczba_czekajacych = []
+        self.historia_liczba_w_ruchu = []
+        self.historia_energia = []
+        self.ostatni_zbierany_tick = -60   # zacznie zbierać od pierwszego ticka
 
         # --- BUDOWA INTERFEJSU ---
         self._buduj_top_bar()
@@ -229,6 +244,130 @@ class SymulatorWindyGUI:
         self.text_log.config(state=tk.DISABLED)
 
     # ----------------------------------------------------------------------
+    # ZBIERANIE DANYCH DO WYKRESÓW
+    # ----------------------------------------------------------------------
+    def _zbierz_dane(self):
+        """Zbiera dane do wykresów co minutę symulacji."""
+        tick = self.winda.aktualny_tick
+        if tick - self.ostatni_zbierany_tick < 60:   # co 60 ticków = 1 minuta
+            return
+        self.ostatni_zbierany_tick = tick
+
+        czas_info = self.czas_sym.tick_na_czas(tick)
+        czas_str = f"{czas_info['godzina']:02d}:{czas_info['minuta']:02d}"
+        self.historia_czas.append(czas_str)
+        self.historia_tick.append(tick)
+
+        stan_windy = self.winda.snapshot()
+        stan_menedzera = self.menedzer.snapshot()
+        stan_energii = self.monitor_energii.snapshot()
+
+        metryki = stan_menedzera.get("metryki_zbiorcze", {})
+        sredni_czek = metryki.get("sredni_czas_oczekiwania_tick", 0.0)
+        if sredni_czek is None:
+            sredni_czek = 0.0
+        self.historia_czas_oczekiwania.append(sredni_czek)
+
+        kolejki = stan_menedzera.get("kolejki", {})
+        liczba_czekajacych = 0
+        for pietro_data in kolejki.values():
+            liczba_czekajacych += len(pietro_data.get("gora", [])) + len(pietro_data.get("dol", []))
+        self.historia_liczba_czekajacych.append(liczba_czekajacych)
+
+        stany = stan_menedzera.get("stany_agentow", {})
+        w_ruchu = (stany.get("CZEKA_NA_WINDE_W_GORE", 0) +
+                   stany.get("CZEKA_NA_WINDE_W_DOL", 0) +
+                   stany.get("JEDZIE_WINDA", 0) +
+                   stany.get("IDZIE_SCHODAMI_W_GORE", 0) +
+                   stany.get("IDZIE_SCHODAMI_W_DOL", 0))
+        self.historia_liczba_w_ruchu.append(w_ruchu)
+
+        energia = stan_energii.get("energia_calkowita", 0.0)
+        self.historia_energia.append(energia)
+
+    # ----------------------------------------------------------------------
+    # OKNO PODSUMOWANIA Z WYKRESAMI
+    # ----------------------------------------------------------------------
+    def _pokaz_podsumowanie(self):
+        """Tworzy okno z wykresami końcowymi i przyciskiem eksportu PNG."""
+        if len(self.historia_tick) < 2:
+            return  # za mało danych
+
+        top = tk.Toplevel(self.root)
+        top.title("Podsumowanie symulacji")
+        top.geometry("900x700")
+
+        main = tk.Frame(top)
+        main.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+
+        fig = Figure(figsize=(8, 6), dpi=100)
+        fig.subplots_adjust(hspace=0.4, wspace=0.3)
+
+        # Wykres 1: średni czas oczekiwania
+        ax1 = fig.add_subplot(2, 2, 1)
+        ax1.plot(self.historia_czas, self.historia_czas_oczekiwania, marker='o', color='b')
+        ax1.set_title("Średni czas oczekiwania")
+        ax1.set_xlabel("Czas")
+        ax1.set_ylabel("tick")
+        ax1.grid(True)
+        if len(self.historia_czas) > 20:
+            step = max(1, len(self.historia_czas)//10)
+            ax1.set_xticks(range(0, len(self.historia_czas), step))
+            ax1.set_xticklabels([self.historia_czas[i] for i in range(0, len(self.historia_czas), step)], rotation=45, ha='right')
+
+        # Wykres 2: liczba oczekujących
+        ax2 = fig.add_subplot(2, 2, 2)
+        ax2.plot(self.historia_czas, self.historia_liczba_czekajacych, marker='s', color='r')
+        ax2.set_title("Liczba oczekujących")
+        ax2.set_xlabel("Czas")
+        ax2.set_ylabel("osoby")
+        ax2.grid(True)
+        if len(self.historia_czas) > 20:
+            ax2.set_xticks(range(0, len(self.historia_czas), step))
+            ax2.set_xticklabels([self.historia_czas[i] for i in range(0, len(self.historia_czas), step)], rotation=45, ha='right')
+
+        # Wykres 3: liczba w ruchu
+        ax3 = fig.add_subplot(2, 2, 3)
+        ax3.plot(self.historia_czas, self.historia_liczba_w_ruchu, marker='^', color='g')
+        ax3.set_title("Liczba osób w ruchu")
+        ax3.set_xlabel("Czas")
+        ax3.set_ylabel("osoby")
+        ax3.grid(True)
+        if len(self.historia_czas) > 20:
+            ax3.set_xticks(range(0, len(self.historia_czas), step))
+            ax3.set_xticklabels([self.historia_czas[i] for i in range(0, len(self.historia_czas), step)], rotation=45, ha='right')
+
+        # Wykres 4: energia
+        ax4 = fig.add_subplot(2, 2, 4)
+        ax4.plot(self.historia_czas, self.historia_energia, marker='d', color='purple')
+        ax4.set_title("Zużycie energii")
+        ax4.set_xlabel("Czas")
+        ax4.set_ylabel("kWh")
+        ax4.grid(True)
+        if len(self.historia_czas) > 20:
+            ax4.set_xticks(range(0, len(self.historia_czas), step))
+            ax4.set_xticklabels([self.historia_czas[i] for i in range(0, len(self.historia_czas), step)], rotation=45, ha='right')
+
+        fig.tight_layout()
+
+        canvas = FigureCanvasTkAgg(fig, master=main)
+        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        btn_frame = tk.Frame(main)
+        btn_frame.pack(fill=tk.X, pady=5)
+
+        def export_png():
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"podsumowanie_{timestamp}.png"
+            fig.savefig(filename, dpi=150)
+            messagebox.showinfo("Eksport", f"Zapisano wykres jako {filename}")
+
+        tk.Button(btn_frame, text="Zapisz jako PNG", command=export_png,
+                  bg="#e8eaed", relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=5)
+        tk.Button(btn_frame, text="Zamknij", command=top.destroy,
+                  bg="#f28b82", fg="white", relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.RIGHT, padx=5)
+
+    # ----------------------------------------------------------------------
     # METODY STEROWANIA SYMULACJĄ
     # ----------------------------------------------------------------------
     def krok(self):
@@ -250,11 +389,15 @@ class SymulatorWindyGUI:
                 snapshot_energii=self.monitor_energii.snapshot(),
             )
 
+        # Zbieranie danych do wykresów
+        self._zbierz_dane()
+
         self.odswiez_widok()
 
     def skok_czasowy(self, minuty):
         """Przeskakuje symulację do przodu o zadaną liczbę minut."""
-        if self.symulacja_dziala:
+        was_running = self.symulacja_dziala
+        if was_running:
             # Zatrzymaj na czas skoku
             self.symulacja_dziala = False
             if self.after_id:
@@ -262,31 +405,22 @@ class SymulatorWindyGUI:
                 self.after_id = None
             self.btn_play.config(text="Start", bg="#81c995")
 
-        # Wykonuj kroki aż do osiągnięcia różnicy czasu
-        cel_tick = self.winda.aktualny_tick
-        # Obliczamy docelowy tick: dodajemy minuty * 60 * ? 
-        # Niestety nie mamy odwrotnego mapowania tick->czas. Użyjemy pętli.
-        # Będziemy wykonywać kroki i sprawdzać czas, aż różnica osiągnie minuty.
+        # Wykonujemy kroki, aż osiągniemy czas
         start_czas = self.czas_sym.tick_na_czas(self.winda.aktualny_tick)
         start_sekunda = start_czas["godzina"]*3600 + start_czas["minuta"]*60 + start_czas["sekunda"]
         cel_sekunda = start_sekunda + minuty * 60
 
-        # Wykonujemy kroki, aż przekroczymy cel
         max_krokow = 100000  # zabezpieczenie
         for _ in range(max_krokow):
             self.krok()  # wykonuje jeden tick i aktualizuje widok
             akt_czas = self.czas_sym.tick_na_czas(self.winda.aktualny_tick)
             akt_sekunda = akt_czas["godzina"]*3600 + akt_czas["minuta"]*60 + akt_czas["sekunda"]
-            # Sprawdzamy, czy przekroczyliśmy cel (uwzględniając przejście przez północ)
             if akt_sekunda >= cel_sekunda:
                 break
-            # Ograniczenie, żeby nie zablokować GUI
             self.root.update_idletasks()
 
-        # Aktualizacja widoku po skoku
         self.odswiez_widok()
-        # Jeśli symulacja była wcześniej włączona, wznawiamy
-        if self.symulacja_dziala_prev:
+        if was_running:
             self.symulacja_dziala = True
             self.btn_play.config(text="Stop", bg="#f28b82")
             self.petla()
@@ -315,6 +449,15 @@ class SymulatorWindyGUI:
         self.monitor_energii = MonitorEnergiiWindy()
         self.logger = LoggerSymulacji(Path(__file__).resolve().parent.parent / "outputs" / "GUI_logs")
 
+        # Wyczyść historię
+        self.historia_tick.clear()
+        self.historia_czas.clear()
+        self.historia_czas_oczekiwania.clear()
+        self.historia_liczba_czekajacych.clear()
+        self.historia_liczba_w_ruchu.clear()
+        self.historia_energia.clear()
+        self.ostatni_zbierany_tick = -60
+
         self.odswiez_widok()
 
     def przelacz(self):
@@ -324,6 +467,10 @@ class SymulatorWindyGUI:
                              bg="#f28b82" if self.symulacja_dziala else "#81c995")
         if self.symulacja_dziala:
             self.petla()
+        else:
+            # Po zatrzymaniu – jeśli zebrano dane, pokaż podsumowanie
+            if len(self.historia_tick) >= 2:
+                self._pokaz_podsumowanie()
 
     def petla(self):
         """Pętla symulacji (wywoływana cyklicznie)."""
