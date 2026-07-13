@@ -283,6 +283,7 @@ class SymulatorWindyGUI:
             return
         x_labels = self.historia_czas
 
+        # Wykres 1: średni czas oczekiwania (bez średniej)
         self.ax1.clear()
         self.ax1.plot(x_labels, self.historia_czas_oczekiwania, marker='o', linestyle='-', color='b', markersize=3)
         self.ax1.set_title("Średni czas oczekiwania [tick]")
@@ -294,6 +295,7 @@ class SymulatorWindyGUI:
             self.ax1.set_xticks(range(0, len(x_labels), step))
             self.ax1.set_xticklabels([x_labels[i] for i in range(0, len(x_labels), step)], rotation=45, ha='right')
 
+        # Wykres 2: liczba oczekujących (ze średnią)
         self.ax2.clear()
         self.ax2.plot(x_labels, self.historia_liczba_czekajacych, marker='s', linestyle='-', color='r', markersize=3)
         self.ax2.set_title("Liczba oczekujących")
@@ -301,9 +303,15 @@ class SymulatorWindyGUI:
         self.ax2.set_ylabel("osoby")
         self.ax2.grid(True)
         if len(x_labels) > 20:
+            step = max(1, len(x_labels)//10)
             self.ax2.set_xticks(range(0, len(x_labels), step))
             self.ax2.set_xticklabels([x_labels[i] for i in range(0, len(x_labels), step)], rotation=45, ha='right')
+        if self.historia_liczba_czekajacych:
+            srednia = sum(self.historia_liczba_czekajacych) / len(self.historia_liczba_czekajacych)
+            self.ax2.axhline(y=srednia, color='orange', linestyle='--', label=f'Średnia: {srednia:.1f}')
+            self.ax2.legend()
 
+        # Wykres 3: liczba osób w ruchu (ze średnią)
         self.ax3.clear()
         self.ax3.plot(x_labels, self.historia_liczba_w_ruchu, marker='^', linestyle='-', color='g', markersize=3)
         self.ax3.set_title("Liczba osób w ruchu")
@@ -311,9 +319,15 @@ class SymulatorWindyGUI:
         self.ax3.set_ylabel("osoby")
         self.ax3.grid(True)
         if len(x_labels) > 20:
+            step = max(1, len(x_labels)//10)
             self.ax3.set_xticks(range(0, len(x_labels), step))
             self.ax3.set_xticklabels([x_labels[i] for i in range(0, len(x_labels), step)], rotation=45, ha='right')
+        if self.historia_liczba_w_ruchu:
+            srednia = sum(self.historia_liczba_w_ruchu) / len(self.historia_liczba_w_ruchu)
+            self.ax3.axhline(y=srednia, color='orange', linestyle='--', label=f'Średnia: {srednia:.1f}')
+            self.ax3.legend()
 
+        # Wykres 4: energia (ze średnią)
         self.ax4.clear()
         self.ax4.plot(x_labels, self.historia_energia, marker='d', linestyle='-', color='purple', markersize=3)
         self.ax4.set_title("Zużycie energii [kWh]")
@@ -321,12 +335,16 @@ class SymulatorWindyGUI:
         self.ax4.set_ylabel("kWh")
         self.ax4.grid(True)
         if len(x_labels) > 20:
+            step = max(1, len(x_labels)//10)
             self.ax4.set_xticks(range(0, len(x_labels), step))
             self.ax4.set_xticklabels([x_labels[i] for i in range(0, len(x_labels), step)], rotation=45, ha='right')
+        if self.historia_energia:
+            srednia = sum(self.historia_energia) / len(self.historia_energia)
+            self.ax4.axhline(y=srednia, color='orange', linestyle='--', label=f'Średnia: {srednia:.3f} kWh')
+            self.ax4.legend()
 
         self.fig.tight_layout()
         self.canvas_wykres.draw()
-
     def _eksportuj_wykresy_live(self):
         if not self.historia_tick:
             messagebox.showinfo("Brak danych", "Nie ma jeszcze danych do eksportu.")
