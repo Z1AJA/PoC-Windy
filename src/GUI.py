@@ -10,7 +10,6 @@ import tkinter.messagebox as messagebox
 
 from Konfiguracja_windy import ParametryWindy
 from Silnik_windy import SilnikWindy
-from Kierunki_i_typy import Kierunek
 from Czas_symulacji import CzasSymulacji, NAZWY_DNI_TYGODNIA
 from Loader_planow import wczytaj_repozytorium_planow
 from Menedzer_agentow import KonfiguracjaGrupyAgentow, MenedzerAgentow
@@ -31,7 +30,7 @@ class SymulatorWindyGUI:
         self.TICKI_PRZEJAZDU = 4
         self.TICKI_POSTOJU = 4
         self.MAX_POJEMNOSC = 6
-        self.BAZOWY_INTERWAL_MS = 400  # bazowe opóźnienie dla prędkości 1x
+        self.BAZOWY_INTERWAL_MS = 400
 
         # --- INICJALIZACJA BACKENDU ---
         self.parametry = ParametryWindy(
@@ -45,7 +44,6 @@ class SymulatorWindyGUI:
         self.winda = SilnikWindy(parametry=self.parametry)
         self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600 + 30 * 60)
 
-        # Wczytanie planów i utworzenie menedżera
         sciezka_planow = Path(__file__).resolve().parent.parent / "data" / "Plany_zajec"
         self.repozytorium = wczytaj_repozytorium_planow(sciezka_planow)
         self.ustawienia = UstawieniaProjektu()
@@ -58,17 +56,18 @@ class SymulatorWindyGUI:
         # Stan symulacji
         self.symulacja_dziala = False
         self.after_id = None
-        self.predkosc = 1.0  # mnożnik prędkości (1x, 2x, 5x, 10x)
-        self.interwal_ms = self.BAZOWY_INTERWAL_MS  # aktualne opóźnienie
+        self.predkosc = 1.0
+        self.interwal_ms = self.BAZOWY_INTERWAL_MS
 
-        # Historia do wykresów końcowych
+        # --- Historia do wykresów ---
         self.historia_tick = []
-        self.historia_czas = []              # string "HH:MM"
+        self.historia_czas = []
         self.historia_czas_oczekiwania = []
         self.historia_liczba_czekajacych = []
         self.historia_liczba_w_ruchu = []
         self.historia_energia = []
-        self.ostatni_zbierany_tick = -60   # zacznie zbierać od pierwszego ticka
+        self.ostatni_zbierany_tick = -60
+        self.wykresy_do_odswiezenia = False
 
         # --- BUDOWA INTERFEJSU ---
         self._buduj_top_bar()
@@ -77,7 +76,6 @@ class SymulatorWindyGUI:
         self.odswiez_widok()
 
     def _dodaj_grupy_agentow(self):
-        """Dodaje przykładowe grupy agentów (jak w konsoli)."""
         plan_ids = self.repozytorium.plan_ids()
         if not plan_ids:
             return
@@ -90,13 +88,12 @@ class SymulatorWindyGUI:
             self.menedzer.dodaj_grupe(KonfiguracjaGrupyAgentow(nazwa, plan_id, pietro, liczba))
 
     # ----------------------------------------------------------------------
-    # BUDOWA ELEMENTÓW GUI
+    # GÓRNY PASEK
     # ----------------------------------------------------------------------
     def _buduj_top_bar(self):
         top_frame = tk.Frame(self.root, bg="#202124")
         top_frame.pack(side=tk.TOP, fill=tk.X)
 
-        # Zegar
         self.panel_zegara = tk.Frame(top_frame, bg="#202124", pady=5)
         self.panel_zegara.pack(side=tk.LEFT, padx=20)
         self.lbl_zegar = tk.Label(self.panel_zegara, text="08:00:00", font=("Consolas", 28, "bold"),
@@ -106,24 +103,20 @@ class SymulatorWindyGUI:
                                   bg="#202124", fg="#81c995")
         self.lbl_dzien.pack()
 
-        # Przycisk Start/Stop
-        self.btn_play = tk.Button(top_frame, text="Start", command=self.przelacz,
-                                  bg="#81c995", fg="white", relief=tk.FLAT, width=10,
+        btn_frame = tk.Frame(top_frame, bg="#202124")
+        btn_frame.pack(side=tk.RIGHT, padx=10, pady=5)
+        self.btn_play = tk.Button(btn_frame, text="Start", command=self.przelacz,
+                                  bg="#81c995", fg="white", relief=tk.FLAT, width=8,
                                   font=("Segoe UI", 10, "bold"))
-        self.btn_play.pack(side=tk.RIGHT, padx=20, pady=5)
-
-        # Przycisk Reset
-        btn_reset = tk.Button(top_frame, text="Reset", command=self.reset,
-                              bg="#f28b82", fg="white", relief=tk.FLAT, width=10,
-                              font=("Segoe UI", 10, "bold"))
-        btn_reset.pack(side=tk.RIGHT, padx=10, pady=5)
+        self.btn_play.pack(side=tk.LEFT, padx=2)
+        tk.Button(btn_frame, text="Reset", command=self.reset,
+                  bg="#f28b82", fg="white", relief=tk.FLAT, width=8,
+                  font=("Segoe UI", 10, "bold")).pack(side=tk.LEFT, padx=2)
 
     def _buduj_pasek_sterowania(self):
-        """Dolny pasek z suwakiem prędkości i przyciskiem +15 min."""
         control_frame = tk.Frame(self.root, bg="#e8eaed", pady=5, padx=10)
         control_frame.pack(side=tk.TOP, fill=tk.X)
 
-        # Suwak prędkości (od 0.5x do 20x, logarytmicznie)
         tk.Label(control_frame, text="Prędkość:", bg="#e8eaed", font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=5)
         self.speed_var = tk.DoubleVar(value=1.0)
         self.speed_scale = ttk.Scale(control_frame, from_=0.5, to=20.0, orient=tk.HORIZONTAL,
@@ -132,26 +125,20 @@ class SymulatorWindyGUI:
         self.lbl_predkosc = tk.Label(control_frame, text="1.0x", bg="#e8eaed", font=("Segoe UI", 9, "bold"), width=6)
         self.lbl_predkosc.pack(side=tk.LEFT, padx=5)
 
-        # Przycisk "+15 min"
         btn_15min = tk.Button(control_frame, text="+15 min", command=lambda: self.skok_czasowy(15),
                               bg="#d2e3fc", relief=tk.FLAT, font=("Segoe UI", 9, "bold"))
         btn_15min.pack(side=tk.LEFT, padx=10)
-
-        # Przycisk "+1 godzina" (opcjonalnie)
         btn_1h = tk.Button(control_frame, text="+1 h", command=lambda: self.skok_czasowy(60),
                            bg="#d2e3fc", relief=tk.FLAT, font=("Segoe UI", 9, "bold"))
         btn_1h.pack(side=tk.LEFT, padx=5)
 
-        # Etykieta informująca o aktualnym interwale
         self.lbl_interwal = tk.Label(control_frame, text="400 ms", bg="#e8eaed", font=("Segoe UI", 9))
         self.lbl_interwal.pack(side=tk.RIGHT, padx=10)
 
     def _zmiana_predkosci(self, event=None):
-        """Aktualizuje interwał na podstawie prędkości."""
         self.predkosc = self.speed_var.get()
         if self.predkosc < 0.5:
             self.predkosc = 0.5
-        # Interwał = bazowy / prędkość, ale ograniczamy do min 10 ms i max 2000 ms
         self.interwal_ms = int(self.BAZOWY_INTERWAL_MS / self.predkosc)
         if self.interwal_ms < 10:
             self.interwal_ms = 10
@@ -159,48 +146,56 @@ class SymulatorWindyGUI:
             self.interwal_ms = 2000
         self.lbl_predkosc.config(text=f"{self.predkosc:.1f}x")
         self.lbl_interwal.config(text=f"{self.interwal_ms} ms")
-        # Jeśli symulacja działa, restartujemy pętlę z nowym interwałem
         if self.symulacja_dziala and self.after_id:
             self.root.after_cancel(self.after_id)
             self.petla()
 
+    # ----------------------------------------------------------------------
+    # GŁÓWNY LAYOUT – NOTEBOOK Z ZAKŁADKAMI
+    # ----------------------------------------------------------------------
     def _stworz_karte(self, parent, tytul):
         kontener = tk.Frame(parent, bg=self.kolor_tla)
-        # Tytuł
         tk.Label(kontener, text=tytul, bg=self.kolor_tla, fg="#444444",
-             font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", pady=(0, 4))
-        # Karta (ramka właściwa)
+                 font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", pady=(0, 4))
         karta = tk.Frame(kontener, bg="white", bd=0, highlightthickness=1,
-                     highlightbackground="#dcdfe6")
+                         highlightbackground="#dcdfe6")
         karta.grid(row=1, column=0, sticky="nsew")
         kontener.rowconfigure(1, weight=1)
         kontener.columnconfigure(0, weight=1)
-        return kontener, karta   # zwracamy kontener i kartę
+        return kontener, karta
 
     def _buduj_main_layout(self):
         self.main_container = tk.Frame(self.root, bg=self.kolor_tla)
         self.main_container.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
 
-        # 2 wiersze, 3 kolumny – równe wagi
-        for col in range(3):
-            self.main_container.columnconfigure(col, weight=1)
-        for row in range(2):
-            self.main_container.rowconfigure(row, weight=1)
+        self.notebook = ttk.Notebook(self.main_container)
+        self.notebook.pack(fill=tk.BOTH, expand=True)
 
-        # ---- Wiersz 0 ----
+        # ---- Zakładka 1: Widok symulacji ----
+        self.tab_symulacja = tk.Frame(self.notebook, bg=self.kolor_tla)
+        self.notebook.add(self.tab_symulacja, text="Symulacja")
+
+        grid_container = tk.Frame(self.tab_symulacja, bg=self.kolor_tla)
+        grid_container.pack(fill=tk.BOTH, expand=True)
+
+        for col in range(3):
+            grid_container.columnconfigure(col, weight=1)
+        for row in range(2):
+            grid_container.rowconfigure(row, weight=1)
+
         # Szyb
-        self.panel_mapa, self.frame_mapa = self._stworz_karte(self.main_container, "Szyb windy")
+        self.panel_mapa, self.frame_mapa = self._stworz_karte(grid_container, "Szyb windy")
         self.panel_mapa.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
         self.canvas_wysokosc = 300
         self.canvas = tk.Canvas(self.frame_mapa, width=180, height=self.canvas_wysokosc,
-                            bg="#ffffff", bd=0, highlightthickness=0)
+                                bg="#ffffff", bd=0, highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
         # Kolejki
-        self.panel_kolejki, self.frame_kolejki = self._stworz_karte(self.main_container, "Kolejki na piętrach")
+        self.panel_kolejki, self.frame_kolejki = self._stworz_karte(grid_container, "Kolejki na piętrach")
         self.panel_kolejki.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
         self.lista_kolejek = tk.Text(self.frame_kolejki, wrap=tk.NONE, font=("Consolas", 9),
-                                 bg="#f8f9fa", fg="#333333", bd=0, highlightthickness=0)
+                                     bg="#f8f9fa", fg="#333333", bd=0, highlightthickness=0)
         self.lista_kolejek.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         scroll_k = tk.Scrollbar(self.frame_kolejki, command=self.lista_kolejek.yview)
         scroll_k.pack(side=tk.RIGHT, fill=tk.Y)
@@ -208,48 +203,145 @@ class SymulatorWindyGUI:
         self.lista_kolejek.config(state=tk.DISABLED)
 
         # Pasażerowie
-        self.panel_pasazerowie, self.frame_pasazerowie = self._stworz_karte(self.main_container, "Winda (pasażerowie)")
+        self.panel_pasazerowie, self.frame_pasazerowie = self._stworz_karte(grid_container, "Winda (pasażerowie)")
         self.panel_pasazerowie.grid(row=0, column=2, sticky="nsew", padx=4, pady=4)
         self.lista_pasazerow = tk.Text(self.frame_pasazerowie, wrap=tk.WORD, font=("Consolas", 9),
-                                   bg="#f8f9fa", fg="#333333", bd=0, highlightthickness=0)
+                                       bg="#f8f9fa", fg="#333333", bd=0, highlightthickness=0)
         self.lista_pasazerow.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         scroll_p = tk.Scrollbar(self.frame_pasazerowie, command=self.lista_pasazerow.yview)
         scroll_p.pack(side=tk.RIGHT, fill=tk.Y)
         self.lista_pasazerow.config(yscrollcommand=scroll_p.set)
         self.lista_pasazerow.config(state=tk.DISABLED)
 
-        # ---- Wiersz 1 ----
-        # Kolumna 0 pozostaje pusta (brak widgetu)
-
-        # Planowane akcje (pod kolejkami)
-        self.panel_akcje, self.frame_akcje = self._stworz_karte(self.main_container, "Planowane akcje agentów")
+        # Planowane akcje
+        self.panel_akcje, self.frame_akcje = self._stworz_karte(grid_container, "Planowane akcje agentów")
         self.panel_akcje.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
         self.lista_akcji = tk.Text(self.frame_akcje, wrap=tk.WORD, font=("Consolas", 9),
-                               bg="#f8f9fa", fg="#333333", bd=0, highlightthickness=0)
+                                   bg="#f8f9fa", fg="#333333", bd=0, highlightthickness=0)
         self.lista_akcji.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         scroll_a = tk.Scrollbar(self.frame_akcje, command=self.lista_akcji.yview)
         scroll_a.pack(side=tk.RIGHT, fill=tk.Y)
         self.lista_akcji.config(yscrollcommand=scroll_a.set)
         self.lista_akcji.config(state=tk.DISABLED)
 
-        # Logi (pod pasażerami)
-        self.panel_log, self.frame_log = self._stworz_karte(self.main_container, "Logi i podsumowanie")
+        # Logi
+        self.panel_log, self.frame_log = self._stworz_karte(grid_container, "Logi i podsumowanie")
         self.panel_log.grid(row=1, column=2, sticky="nsew", padx=4, pady=4)
         self.text_log = tk.Text(self.frame_log, wrap=tk.WORD, font=("Consolas", 9),
-                            bg="#2b2d30", fg="#a9b7c6", bd=0, highlightthickness=0)
+                                bg="#2b2d30", fg="#a9b7c6", bd=0, highlightthickness=0)
         self.text_log.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         scroll_l = tk.Scrollbar(self.frame_log, command=self.text_log.yview)
         scroll_l.pack(side=tk.RIGHT, fill=tk.Y)
         self.text_log.config(yscrollcommand=scroll_l.set)
         self.text_log.config(state=tk.DISABLED)
 
+        # ---- Zakładka 2: Wykresy live ----
+        self.tab_wykresy = tk.Frame(self.notebook, bg="white")
+        self.notebook.add(self.tab_wykresy, text="Wykresy live")
+
+        self.fig = Figure(figsize=(6, 4), dpi=100)
+        self.fig.subplots_adjust(hspace=0.4, wspace=0.3)
+        self.ax1 = self.fig.add_subplot(2, 2, 1)
+        self.ax2 = self.fig.add_subplot(2, 2, 2)
+        self.ax3 = self.fig.add_subplot(2, 2, 3)
+        self.ax4 = self.fig.add_subplot(2, 2, 4)
+        self.canvas_wykres = FigureCanvasTkAgg(self.fig, master=self.tab_wykresy)
+        self.canvas_wykres.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        btn_export_live = tk.Button(self.tab_wykresy, text="Eksportuj wykresy live", 
+                                    command=self._eksportuj_wykresy_live,
+                                    bg="#e8eaed", relief=tk.FLAT, font=("Segoe UI", 9, "bold"))
+        btn_export_live.pack(pady=5)
+
+        self._inicjalizuj_wykresy_live()
+
+    def _inicjalizuj_wykresy_live(self):
+        self.ax1.clear()
+        self.ax2.clear()
+        self.ax3.clear()
+        self.ax4.clear()
+        self.ax1.set_title("Średni czas oczekiwania [tick]")
+        self.ax1.set_xlabel("Czas")
+        self.ax1.set_ylabel("tick")
+        self.ax1.grid(True)
+        self.ax2.set_title("Liczba oczekujących")
+        self.ax2.set_xlabel("Czas")
+        self.ax2.set_ylabel("osoby")
+        self.ax2.grid(True)
+        self.ax3.set_title("Liczba osób w ruchu")
+        self.ax3.set_xlabel("Czas")
+        self.ax3.set_ylabel("osoby")
+        self.ax3.grid(True)
+        self.ax4.set_title("Zużycie energii [kWh]")
+        self.ax4.set_xlabel("Czas")
+        self.ax4.set_ylabel("kWh")
+        self.ax4.grid(True)
+        self.canvas_wykres.draw()
+
+    def _aktualizuj_wykresy_live(self):
+        if not self.historia_tick:
+            return
+        x_labels = self.historia_czas
+
+        self.ax1.clear()
+        self.ax1.plot(x_labels, self.historia_czas_oczekiwania, marker='o', linestyle='-', color='b', markersize=3)
+        self.ax1.set_title("Średni czas oczekiwania [tick]")
+        self.ax1.set_xlabel("Czas")
+        self.ax1.set_ylabel("tick")
+        self.ax1.grid(True)
+        if len(x_labels) > 20:
+            step = max(1, len(x_labels)//10)
+            self.ax1.set_xticks(range(0, len(x_labels), step))
+            self.ax1.set_xticklabels([x_labels[i] for i in range(0, len(x_labels), step)], rotation=45, ha='right')
+
+        self.ax2.clear()
+        self.ax2.plot(x_labels, self.historia_liczba_czekajacych, marker='s', linestyle='-', color='r', markersize=3)
+        self.ax2.set_title("Liczba oczekujących")
+        self.ax2.set_xlabel("Czas")
+        self.ax2.set_ylabel("osoby")
+        self.ax2.grid(True)
+        if len(x_labels) > 20:
+            self.ax2.set_xticks(range(0, len(x_labels), step))
+            self.ax2.set_xticklabels([x_labels[i] for i in range(0, len(x_labels), step)], rotation=45, ha='right')
+
+        self.ax3.clear()
+        self.ax3.plot(x_labels, self.historia_liczba_w_ruchu, marker='^', linestyle='-', color='g', markersize=3)
+        self.ax3.set_title("Liczba osób w ruchu")
+        self.ax3.set_xlabel("Czas")
+        self.ax3.set_ylabel("osoby")
+        self.ax3.grid(True)
+        if len(x_labels) > 20:
+            self.ax3.set_xticks(range(0, len(x_labels), step))
+            self.ax3.set_xticklabels([x_labels[i] for i in range(0, len(x_labels), step)], rotation=45, ha='right')
+
+        self.ax4.clear()
+        self.ax4.plot(x_labels, self.historia_energia, marker='d', linestyle='-', color='purple', markersize=3)
+        self.ax4.set_title("Zużycie energii [kWh]")
+        self.ax4.set_xlabel("Czas")
+        self.ax4.set_ylabel("kWh")
+        self.ax4.grid(True)
+        if len(x_labels) > 20:
+            self.ax4.set_xticks(range(0, len(x_labels), step))
+            self.ax4.set_xticklabels([x_labels[i] for i in range(0, len(x_labels), step)], rotation=45, ha='right')
+
+        self.fig.tight_layout()
+        self.canvas_wykres.draw()
+
+    def _eksportuj_wykresy_live(self):
+        if not self.historia_tick:
+            messagebox.showinfo("Brak danych", "Nie ma jeszcze danych do eksportu.")
+            return
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"wykresy_live_{timestamp}.png"
+        self.fig.savefig(filename, dpi=150)
+        messagebox.showinfo("Eksport", f"Zapisano wykresy live jako {filename}")
+
     # ----------------------------------------------------------------------
-    # ZBIERANIE DANYCH DO WYKRESÓW
+    # ZBIERANIE DANYCH
     # ----------------------------------------------------------------------
     def _zbierz_dane(self):
-        """Zbiera dane do wykresów co minutę symulacji."""
         tick = self.winda.aktualny_tick
-        if tick - self.ostatni_zbierany_tick < 60:   # co 60 ticków = 1 minuta
+        if tick - self.ostatni_zbierany_tick < 60:
             return
         self.ostatni_zbierany_tick = tick
 
@@ -285,13 +377,105 @@ class SymulatorWindyGUI:
         energia = stan_energii.get("energia_calkowita", 0.0)
         self.historia_energia.append(energia)
 
+        self.wykresy_do_odswiezenia = True
+
     # ----------------------------------------------------------------------
-    # OKNO PODSUMOWANIA Z WYKRESAMI
+    # METODY SYMULACJI
+    # ----------------------------------------------------------------------
+    def krok(self):
+        if self.winda is None:
+            return
+        self.winda.krok()
+        self.monitor_energii.krok(self.winda.snapshot())
+        czas_info = self.czas_sym.tick_na_czas(self.winda.aktualny_tick)
+        self.menedzer.krok(czas_info)
+        self.logger.pobierz_nowe_zdarzenia_z_menedzera(self.menedzer)
+
+        if czas_info["sekunda"] == 0:
+            self.logger.zapisz_probke(
+                czas_info=czas_info,
+                snapshot_windy=self.winda.snapshot(),
+                snapshot_menedzera=self.menedzer.snapshot(),
+                snapshot_energii=self.monitor_energii.snapshot(),
+            )
+
+        self._zbierz_dane()
+        self.odswiez_widok()
+
+    def skok_czasowy(self, minuty):
+        was_running = self.symulacja_dziala
+        if was_running:
+            self.symulacja_dziala = False
+            if self.after_id:
+                self.root.after_cancel(self.after_id)
+                self.after_id = None
+            self.btn_play.config(text="Start", bg="#81c995")
+
+        liczba_tickow = minuty * 60
+        for _ in range(liczba_tickow):
+            self.krok()
+            self.root.update()   # aby GUI nie zamarło
+
+        self.odswiez_widok()
+        if was_running:
+            self.symulacja_dziala = True
+            self.btn_play.config(text="Stop", bg="#f28b82")
+            self.petla()
+
+    def reset(self):
+        self.symulacja_dziala = False
+        if self.after_id:
+            self.root.after_cancel(self.after_id)
+            self.after_id = None
+        self.btn_play.config(text="Start", bg="#81c995")
+
+        self.parametry = ParametryWindy(
+            liczba_pieter=self.LICZBA_PIETER,
+            pietro_startowe=0,
+            ticki_przejazdu_na_pietro=self.TICKI_PRZEJAZDU,
+            ticki_postoju=self.TICKI_POSTOJU,
+            maks_pojemnosc=self.MAX_POJEMNOSC,
+            poczatkowe_obciazenie=0,
+        )
+        self.winda = SilnikWindy(parametry=self.parametry)
+        self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600 + 30 * 60)
+        self.menedzer = MenedzerAgentow(self.repozytorium, self.winda, self.ustawienia)
+        self._dodaj_grupy_agentow()
+        self.monitor_energii = MonitorEnergiiWindy()
+        self.logger = LoggerSymulacji(Path(__file__).resolve().parent.parent / "outputs" / "GUI_logs")
+
+        self.historia_tick.clear()
+        self.historia_czas.clear()
+        self.historia_czas_oczekiwania.clear()
+        self.historia_liczba_czekajacych.clear()
+        self.historia_liczba_w_ruchu.clear()
+        self.historia_energia.clear()
+        self.ostatni_zbierany_tick = -60
+        self.wykresy_do_odswiezenia = False
+        self._inicjalizuj_wykresy_live()
+        self.odswiez_widok()
+
+    def przelacz(self):
+        self.symulacja_dziala = not self.symulacja_dziala
+        self.btn_play.config(text="Stop" if self.symulacja_dziala else "Start",
+                             bg="#f28b82" if self.symulacja_dziala else "#81c995")
+        if self.symulacja_dziala:
+            self.petla()
+        else:
+            if len(self.historia_tick) > 1:
+                self._pokaz_podsumowanie()
+
+    def petla(self):
+        if self.symulacja_dziala:
+            self.krok()
+            self.after_id = self.root.after(self.interwal_ms, self.petla)
+
+    # ----------------------------------------------------------------------
+    # OKNO PODSUMOWANIA (końcowe wykresy)
     # ----------------------------------------------------------------------
     def _pokaz_podsumowanie(self):
-        """Tworzy okno z wykresami końcowymi i przyciskiem eksportu PNG."""
-        if len(self.historia_tick) < 2:
-            return  # za mało danych
+        if not self.historia_tick:
+            return
 
         top = tk.Toplevel(self.root)
         top.title("Podsumowanie symulacji")
@@ -303,7 +487,6 @@ class SymulatorWindyGUI:
         fig = Figure(figsize=(8, 6), dpi=100)
         fig.subplots_adjust(hspace=0.4, wspace=0.3)
 
-        # Wykres 1: średni czas oczekiwania
         ax1 = fig.add_subplot(2, 2, 1)
         ax1.plot(self.historia_czas, self.historia_czas_oczekiwania, marker='o', color='b')
         ax1.set_title("Średni czas oczekiwania")
@@ -315,7 +498,6 @@ class SymulatorWindyGUI:
             ax1.set_xticks(range(0, len(self.historia_czas), step))
             ax1.set_xticklabels([self.historia_czas[i] for i in range(0, len(self.historia_czas), step)], rotation=45, ha='right')
 
-        # Wykres 2: liczba oczekujących
         ax2 = fig.add_subplot(2, 2, 2)
         ax2.plot(self.historia_czas, self.historia_liczba_czekajacych, marker='s', color='r')
         ax2.set_title("Liczba oczekujących")
@@ -323,10 +505,10 @@ class SymulatorWindyGUI:
         ax2.set_ylabel("osoby")
         ax2.grid(True)
         if len(self.historia_czas) > 20:
+            step = max(1, len(self.historia_czas)//10)
             ax2.set_xticks(range(0, len(self.historia_czas), step))
             ax2.set_xticklabels([self.historia_czas[i] for i in range(0, len(self.historia_czas), step)], rotation=45, ha='right')
 
-        # Wykres 3: liczba w ruchu
         ax3 = fig.add_subplot(2, 2, 3)
         ax3.plot(self.historia_czas, self.historia_liczba_w_ruchu, marker='^', color='g')
         ax3.set_title("Liczba osób w ruchu")
@@ -334,10 +516,10 @@ class SymulatorWindyGUI:
         ax3.set_ylabel("osoby")
         ax3.grid(True)
         if len(self.historia_czas) > 20:
+            step = max(1, len(self.historia_czas)//10)
             ax3.set_xticks(range(0, len(self.historia_czas), step))
             ax3.set_xticklabels([self.historia_czas[i] for i in range(0, len(self.historia_czas), step)], rotation=45, ha='right')
 
-        # Wykres 4: energia
         ax4 = fig.add_subplot(2, 2, 4)
         ax4.plot(self.historia_czas, self.historia_energia, marker='d', color='purple')
         ax4.set_title("Zużycie energii")
@@ -345,6 +527,7 @@ class SymulatorWindyGUI:
         ax4.set_ylabel("kWh")
         ax4.grid(True)
         if len(self.historia_czas) > 20:
+            step = max(1, len(self.historia_czas)//10)
             ax4.set_xticks(range(0, len(self.historia_czas), step))
             ax4.set_xticklabels([self.historia_czas[i] for i in range(0, len(self.historia_czas), step)], rotation=45, ha='right')
 
@@ -368,170 +551,51 @@ class SymulatorWindyGUI:
                   bg="#f28b82", fg="white", relief=tk.FLAT, font=("Segoe UI", 9, "bold")).pack(side=tk.RIGHT, padx=5)
 
     # ----------------------------------------------------------------------
-    # METODY STEROWANIA SYMULACJĄ
-    # ----------------------------------------------------------------------
-    def krok(self):
-        """Wykonuje jeden krok symulacji (tick)."""
-        if self.winda is None:
-            return
-        self.winda.krok()
-        self.monitor_energii.krok(self.winda.snapshot())
-        czas_info = self.czas_sym.tick_na_czas(self.winda.aktualny_tick)
-        self.menedzer.krok(czas_info)
-        self.logger.pobierz_nowe_zdarzenia_z_menedzera(self.menedzer)
-
-        # Okresowe zapisywanie próbek (co minutę)
-        if czas_info["sekunda"] == 0:
-            self.logger.zapisz_probke(
-                czas_info=czas_info,
-                snapshot_windy=self.winda.snapshot(),
-                snapshot_menedzera=self.menedzer.snapshot(),
-                snapshot_energii=self.monitor_energii.snapshot(),
-            )
-
-        # Zbieranie danych do wykresów
-        self._zbierz_dane()
-
-        self.odswiez_widok()
-
-    def skok_czasowy(self, minuty):
-        """Przeskakuje symulację do przodu o zadaną liczbę minut."""
-        was_running = self.symulacja_dziala
-        if was_running:
-            # Zatrzymaj na czas skoku
-            self.symulacja_dziala = False
-            if self.after_id:
-                self.root.after_cancel(self.after_id)
-                self.after_id = None
-            self.btn_play.config(text="Start", bg="#81c995")
-
-        # Wykonujemy kroki, aż osiągniemy czas
-        start_czas = self.czas_sym.tick_na_czas(self.winda.aktualny_tick)
-        start_sekunda = start_czas["godzina"]*3600 + start_czas["minuta"]*60 + start_czas["sekunda"]
-        cel_sekunda = start_sekunda + minuty * 60
-
-        max_krokow = 100000  # zabezpieczenie
-        for _ in range(max_krokow):
-            self.krok()  # wykonuje jeden tick i aktualizuje widok
-            akt_czas = self.czas_sym.tick_na_czas(self.winda.aktualny_tick)
-            akt_sekunda = akt_czas["godzina"]*3600 + akt_czas["minuta"]*60 + akt_czas["sekunda"]
-            if akt_sekunda >= cel_sekunda:
-                break
-            self.root.update_idletasks()
-
-        self.odswiez_widok()
-        if was_running:
-            self.symulacja_dziala = True
-            self.btn_play.config(text="Stop", bg="#f28b82")
-            self.petla()
-
-    def reset(self):
-        """Resetuje całą symulację do stanu początkowego."""
-        self.symulacja_dziala = False
-        if self.after_id:
-            self.root.after_cancel(self.after_id)
-            self.after_id = None
-        self.btn_play.config(text="Start", bg="#81c995")
-
-        # Nowe obiekty
-        self.parametry = ParametryWindy(
-            liczba_pieter=self.LICZBA_PIETER,
-            pietro_startowe=0,
-            ticki_przejazdu_na_pietro=self.TICKI_PRZEJAZDU,
-            ticki_postoju=self.TICKI_POSTOJU,
-            maks_pojemnosc=self.MAX_POJEMNOSC,
-            poczatkowe_obciazenie=0,
-        )
-        self.winda = SilnikWindy(parametry=self.parametry)
-        self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600 + 30 * 60)
-        self.menedzer = MenedzerAgentow(self.repozytorium, self.winda, self.ustawienia)
-        self._dodaj_grupy_agentow()
-        self.monitor_energii = MonitorEnergiiWindy()
-        self.logger = LoggerSymulacji(Path(__file__).resolve().parent.parent / "outputs" / "GUI_logs")
-
-        # Wyczyść historię
-        self.historia_tick.clear()
-        self.historia_czas.clear()
-        self.historia_czas_oczekiwania.clear()
-        self.historia_liczba_czekajacych.clear()
-        self.historia_liczba_w_ruchu.clear()
-        self.historia_energia.clear()
-        self.ostatni_zbierany_tick = -60
-
-        self.odswiez_widok()
-
-    def przelacz(self):
-        """Start/Stop ciągłej symulacji."""
-        self.symulacja_dziala = not self.symulacja_dziala
-        self.btn_play.config(text="Stop" if self.symulacja_dziala else "Start",
-                             bg="#f28b82" if self.symulacja_dziala else "#81c995")
-        if self.symulacja_dziala:
-            self.petla()
-        else:
-            # Po zatrzymaniu – jeśli zebrano dane, pokaż podsumowanie
-            if len(self.historia_tick) >= 2:
-                self._pokaz_podsumowanie()
-
-    def petla(self):
-        """Pętla symulacji (wywoływana cyklicznie)."""
-        if self.symulacja_dziala:
-            self.krok()
-            self.after_id = self.root.after(self.interwal_ms, self.petla)
-
-    # ----------------------------------------------------------------------
     # ODŚWIEŻANIE WIDOKU
     # ----------------------------------------------------------------------
     def odswiez_widok(self):
-        """Aktualizuje wszystkie elementy GUI na podstawie bieżącego stanu."""
         if self.winda is None:
             return
 
-        # 1. Zegar
         tick = self.winda.aktualny_tick
         dane_czasu = self.czas_sym.tick_na_czas(tick)
         godz_str = f"{dane_czasu['godzina']:02d}:{dane_czasu['minuta']:02d}:{dane_czasu['sekunda']:02d}"
         self.lbl_zegar.config(text=godz_str)
         self.lbl_dzien.config(text=NAZWY_DNI_TYGODNIA[dane_czasu['dzien_tygodnia']].upper())
 
-        # 2. Snapshoty
         stan_windy = self.winda.snapshot()
         stan_menedzera = self.menedzer.snapshot()
         stan_energii = self.monitor_energii.snapshot()
 
-        # 3. Canvas (szyb)
         self._rysuj_szyb(stan_windy, stan_menedzera)
-
-        # 4. Panel kolejek (tekst)
         self._aktualizuj_panel_kolejek(stan_menedzera)
-
-        # 5. Panel pasażerów w windzie
         self._aktualizuj_panel_pasazerow(stan_menedzera)
-
-        # 6. Panel planowanych akcji agentów
         self._aktualizuj_panel_akcji(stan_menedzera)
-
-        # 7. Logi i podsumowanie
         self._aktualizuj_logi(dane_czasu, stan_windy, stan_menedzera, stan_energii)
 
+        if self.wykresy_do_odswiezenia:
+            self._aktualizuj_wykresy_live()
+            self.wykresy_do_odswiezenia = False
+
+    # ----------------------------------------------------------------------
+    # RYSOWANIE SZYBU (bez zmian)
+    # ----------------------------------------------------------------------
     def _rysuj_szyb(self, stan_windy, stan_menedzera):
         self.canvas.delete("all")
         h_p = self.canvas_wysokosc / self.LICZBA_PIETER
         akt_p = stan_windy["aktualne_pietro"]
         str_kier = str(stan_windy["kierunek"]).split('.')[-1]
 
-        # Płynna pozycja windy
         offset = 0
         if stan_windy["czy_jedzie"] and self.TICKI_PRZEJAZDU > 0:
             ulamek = 1.0 - (stan_windy["ticki_do_nastepnego_pietra"] / self.TICKI_PRZEJAZDU)
             offset = ulamek if str_kier == "GORA" else -ulamek
 
-        # Rysowanie poziomych linii dla pięter
         for i in range(self.LICZBA_PIETER):
             y = self.canvas_wysokosc - (i * h_p)
             self.canvas.create_line(40, y, 170, y, fill="#e0e0e0", dash=(4, 4))
             self.canvas.create_text(25, y - 10, text=f"P{i}", font=("Segoe UI", 9, "bold"), fill="#aaaaaa")
 
-            # Liczba oczekujących na tym piętrze
             kolejki = stan_menedzera["kolejki"]
             if str(i) in kolejki:
                 gora = len(kolejki[str(i)]["gora"])
@@ -541,36 +605,30 @@ class SymulatorWindyGUI:
                     self.canvas.create_text(55, y - 10, text=tekst, font=("Consolas", 8),
                                             fill="#d32f2f" if gora + dol > 0 else "#888888")
 
-        # Rysowanie windy
         w_h = h_p * 0.75
         y_mid = self.canvas_wysokosc - ((akt_p + offset) * h_p) - (h_p / 2)
         x1, y1 = 60, y_mid - w_h / 2
         x2, y2 = 150, y_mid + w_h / 2
         self._rysuj_zaokraglony_prostokat(x1, y1, x2, y2, promien=8,
                                           fill="#fbbc04" if stan_windy["czy_stoi_na_przystanku"] else "#4285f4")
-
-        # Wewnątrz windy: liczba pasażerów
         obc = stan_windy["obciazenie"]
-        self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2,
-                                text=str(obc), font=("Consolas", 14, "bold"), fill="white")
+        self.canvas.create_text((x1+x2)/2, (y1+y2)/2, text=str(obc),
+                                font=("Consolas", 14, "bold"), fill="white")
 
     def _rysuj_zaokraglony_prostokat(self, x1, y1, x2, y2, promien=8, **kwargs):
         punkty = [
-            x1 + promien, y1,
-            x2 - promien, y1,
-            x2, y1,
-            x2, y1 + promien,
-            x2, y2 - promien,
-            x2, y2,
-            x2 - promien, y2,
-            x1 + promien, y2,
-            x1, y2,
-            x1, y2 - promien,
-            x1, y1 + promien,
-            x1, y1
+            x1+promien, y1, x2-promien, y1,
+            x2, y1, x2, y1+promien,
+            x2, y2-promien, x2, y2,
+            x2-promien, y2, x1+promien, y2,
+            x1, y2, x1, y2-promien,
+            x1, y1+promien, x1, y1
         ]
         return self.canvas.create_polygon(punkty, smooth=True, **kwargs)
 
+    # ----------------------------------------------------------------------
+    # PANELE TEKSTOWE (bez zmian)
+    # ----------------------------------------------------------------------
     def _aktualizuj_panel_kolejek(self, stan_menedzera):
         self.lista_kolejek.config(state=tk.NORMAL)
         self.lista_kolejek.delete(1.0, tk.END)
@@ -597,10 +655,8 @@ class SymulatorWindyGUI:
     def _aktualizuj_panel_pasazerow(self, stan_menedzera):
         self.lista_pasazerow.config(state=tk.NORMAL)
         self.lista_pasazerow.delete(1.0, tk.END)
-
         agenci = stan_menedzera.get("agenci", {})
         w_windzie = [aid for aid, a in agenci.items() if a.get("stan") == "JEDZIE_WINDA"]
-
         if not w_windzie:
             self.lista_pasazerow.insert(tk.END, "Winda pusta.\n")
         else:
@@ -614,18 +670,14 @@ class SymulatorWindyGUI:
         self.lista_pasazerow.config(state=tk.DISABLED)
 
     def _aktualizuj_panel_akcji(self, stan_menedzera):
-        """Wyświetla najbliższe akcje agentów."""
         self.lista_akcji.config(state=tk.NORMAL)
         self.lista_akcji.delete(1.0, tk.END)
-
         agenci = stan_menedzera.get("agenci", {})
-        # Sortuj agentów według pozycji w kolejce lub ID
-        # Wybierz tylko tych, którzy mają zaplanowane akcje
         akcje_list = []
         for agent_id, agent in agenci.items():
             nastepne = agent.get("nastepne_akcje", [])
             if nastepne:
-                for akcja in nastepne[:2]:  # max 2 akcje na agenta
+                for akcja in nastepne[:2]:
                     czas = akcja.get("czas", "?")
                     typ = akcja.get("etykieta", akcja.get("typ_akcji", "?"))
                     cel = akcja.get("pietro_docelowe")
@@ -633,21 +685,17 @@ class SymulatorWindyGUI:
                     trasa = f" P{start}->P{cel}" if start is not None and cel is not None else ""
                     losowe = " [L]" if akcja.get("czy_losowe") else ""
                     akcje_list.append((czas, agent_id, f"{typ}{trasa}{losowe}"))
-
         if not akcje_list:
             self.lista_akcji.insert(tk.END, "Brak planowanych akcji.\n")
         else:
-            # Sortuj po czasie
             akcje_list.sort(key=lambda x: x[0])
-            for czas, agent_id, opis in akcje_list[:30]:  # ogranicz do 30 wpisów
+            for czas, agent_id, opis in akcje_list[:30]:
                 self.lista_akcji.insert(tk.END, f"{czas} | {agent_id}: {opis}\n")
-
         self.lista_akcji.config(state=tk.DISABLED)
 
     def _aktualizuj_logi(self, czas_info, stan_windy, stan_menedzera, stan_energii):
         self.text_log.config(state=tk.NORMAL)
         self.text_log.delete(1.0, tk.END)
-
         lines = []
         lines.append(f"=== {czas_info['nazwa_dnia']} {czas_info['czas_tekst']} (tick {czas_info['tick']}) ===")
         lines.append(f"Piętro: {stan_windy['aktualne_pietro']}  Kierunek: {stan_windy['kierunek']}")
