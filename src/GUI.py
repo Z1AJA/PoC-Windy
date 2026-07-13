@@ -1,394 +1,528 @@
 import tkinter as tk
 from tkinter import ttk
+from pathlib import Path
+
 from Konfiguracja_windy import ParametryWindy
 from Silnik_windy import SilnikWindy
-from Kierunki_i_typy import Kierunek, ZrodloZgloszenia
+from Kierunki_i_typy import Kierunek
 from Czas_symulacji import CzasSymulacji, NAZWY_DNI_TYGODNIA
+from Loader_planow import wczytaj_repozytorium_planow
+from Menedzer_agentow import KonfiguracjaGrupyAgentow, MenedzerAgentow
+from Model_energii import MonitorEnergiiWindy
+from Logger_symulacji import LoggerSymulacji
+from Ustawienia_projektu import UstawieniaProjektu
 
-class OkraglyPrzycisk(tk.Canvas):
-    """Własny komponent okrągłego przycisku oparty na Canvas."""
-    def __init__(self, parent, tekst, komenda, promien=22, kolor="#ffffff", kolor_aktywny="#4285f4"):
-        super().__init__(parent, width=promien*2, height=promien*2, bg=parent["bg"], 
-                         highlightthickness=0, cursor="hand2")
-        self.komenda = komenda
-        self.kolor = kolor
-        self.kolor_aktywny = kolor_aktywny
-        
-        # Rysowanie koła
-        self.owale = self.create_oval(2, 2, promien*2-2, promien*2-2, fill=kolor, outline="#dcdfe6", width=2)
-        self.tekst = self.create_text(promien, promien, text=tekst, font=("Segoe UI", 12, "bold"), fill="#333333")
-        
-        # Zdarzenia
-        self.bind("<Button-1>", lambda e: self._klik())
-        self.bind("<Enter>", lambda e: self.itemconfig(self.owale, fill="#f8f9fa"))
-        self.bind("<Leave>", lambda e: self.itemconfig(self.owale, fill=self.kolor))
-
-    def _klik(self):
-        self.itemconfig(self.owale, fill=self.kolor_aktywny)
-        self.itemconfig(self.tekst, fill="white")
-        self.after(100, lambda: [self.itemconfig(self.owale, fill=self.kolor), 
-                                 self.itemconfig(self.tekst, fill="#333333")])
-        self.komenda()
 
 class SymulatorWindyGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Symulator Inteligentnej Windy (Modern UI)")
-        self.kolor_tla = "#f0f2f5" 
+        self.root.title("Symulator Inteligentnej Windy (z agentami)")
+        self.kolor_tla = "#f0f2f5"
         self.root.configure(bg=self.kolor_tla)
-        
-        # Zmienne dla ustawień
-        self.interwal_var = tk.IntVar(value=400)        # ms
-        self.pietra_var = tk.IntVar(value=10)           # liczba pięter
-        
-        # --- 1. Inicjalizacja Backendu ---
-        self.parametry = ParametryWindy(liczba_pieter=self.pietra_var.get())
+
+        # --- STAŁE USTAWIENIA SYMULACJI ---
+        self.LICZBA_PIETER = 15
+        self.TICKI_PRZEJAZDU = 4
+        self.TICKI_POSTOJU = 4
+        self.MAX_POJEMNOSC = 6
+        self.BAZOWY_INTERWAL_MS = 400  # bazowe opóźnienie dla prędkości 1x
+
+        # --- INICJALIZACJA BACKENDU ---
+        self.parametry = ParametryWindy(
+            liczba_pieter=self.LICZBA_PIETER,
+            pietro_startowe=0,
+            ticki_przejazdu_na_pietro=self.TICKI_PRZEJAZDU,
+            ticki_postoju=self.TICKI_POSTOJU,
+            maks_pojemnosc=self.MAX_POJEMNOSC,
+            poczatkowe_obciazenie=0,
+        )
         self.winda = SilnikWindy(parametry=self.parametry)
-        self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600)
-        
+        self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600 + 30 * 60)
+
+        # Wczytanie planów i utworzenie menedżera
+        sciezka_planow = Path(__file__).resolve().parent.parent / "data" / "Plany_zajec"
+        self.repozytorium = wczytaj_repozytorium_planow(sciezka_planow)
+        self.ustawienia = UstawieniaProjektu()
+        self.menedzer = MenedzerAgentow(self.repozytorium, self.winda, self.ustawienia)
+        self._dodaj_grupy_agentow()
+
+        self.monitor_energii = MonitorEnergiiWindy()
+        self.logger = LoggerSymulacji(Path(__file__).resolve().parent.parent / "outputs" / "GUI_logs")
+
+        # Stan symulacji
         self.symulacja_dziala = False
-        self.interwal_ticku_ms = self.interwal_var.get()
-        self.after_id = None 
-        
-        # --- Górny pasek: zegar + ustawienia ---
-        top_frame = tk.Frame(root, bg="#202124")
-        top_frame.pack(side=tk.TOP, fill=tk.X)
-        
-        # Zegar (lewa strona)
-        self.panel_zegara = tk.Frame(top_frame, bg="#202124", pady=5)
-        self.panel_zegara.pack(side=tk.LEFT, padx=20)
-        self.lbl_zegar = tk.Label(self.panel_zegara, text="08:00:00", font=("Consolas", 28, "bold"), 
-                                  bg="#202124", fg="#ffffff")
-        self.lbl_zegar.pack()
-        self.lbl_dzien = tk.Label(self.panel_zegara, text="PONIEDZIAŁEK", font=("Segoe UI", 11, "bold"), 
-                                  bg="#202124", fg="#81c995")
-        self.lbl_dzien.pack()
-        
-        # Panel ustawień (prawa strona)
-        ustawienia_frame = tk.Frame(top_frame, bg="#202124", padx=10, pady=5)
-        ustawienia_frame.pack(side=tk.RIGHT, padx=20)
-        
-        # Suwak interwału + pole tekstowe
-        tk.Label(ustawienia_frame, text="Interwał ticku (ms)", bg="#202124", fg="#cccccc", 
-                font=("Segoe UI", 9)).grid(row=0, column=0, columnspan=3, pady=(0,2))
-        
-        self.scale_interwal = ttk.Scale(ustawienia_frame, from_=1, to=2000, orient=tk.HORIZONTAL,
-                                       variable=self.interwal_var, command=self._zmiana_interwalu_suwak)
-        self.scale_interwal.grid(row=1, column=0, sticky="ew", padx=(0,5))
-        
-        # Pole do ręcznego wpisania interwału
-        vcmd = (self.root.register(self._waliduj_interwal), '%P')
-        self.entry_interwal = tk.Entry(ustawienia_frame, textvariable=self.interwal_var, 
-                                      width=6, font=("Segoe UI", 9), justify='center',
-                                      validate='key', validatecommand=vcmd)
-        self.entry_interwal.grid(row=1, column=1, padx=(0,5))
-        self.entry_interwal.bind('<Return>', self._ustaw_interwal_z_klawiatury)
-        self.entry_interwal.bind('<FocusOut>', self._ustaw_interwal_z_klawiatury)
-        
-        self.lbl_interwal = tk.Label(ustawienia_frame, text="400 ms", bg="#202124", fg="white", 
-                                     font=("Segoe UI", 9, "bold"), width=7)
-        self.lbl_interwal.grid(row=1, column=2)
-        self.interwal_var.trace_add("write", lambda *_: self.lbl_interwal.config(text=f"{self.interwal_var.get()} ms"))
-        
-        # Suwak liczby pięter
-        tk.Label(ustawienia_frame, text="Liczba pięter", bg="#202124", fg="#cccccc", 
-                font=("Segoe UI", 9)).grid(row=2, column=0, columnspan=3, pady=(10,2))
-        self.scale_pietra = ttk.Scale(ustawienia_frame, from_=5, to=18, orient=tk.HORIZONTAL,
-                                     variable=self.pietra_var, command=self._zmiana_pieter)
-        self.scale_pietra.grid(row=3, column=0, columnspan=2, sticky="ew", padx=(0,5))
-        self.lbl_pietra = tk.Label(ustawienia_frame, text="10", bg="#202124", fg="white", 
-                                   font=("Segoe UI", 9, "bold"), width=7)
-        self.lbl_pietra.grid(row=3, column=2)
-        self.pietra_var.trace_add("write", lambda *_: self.lbl_pietra.config(text=str(self.pietra_var.get())))
-        
-        ustawienia_frame.columnconfigure(0, weight=1)
-        
-        # --- 2. Layout główny (kontener na resztę interfejsu) ---
-        self.main_container = tk.Frame(root, bg=self.kolor_tla)
-        self.main_container.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
-        
-        self.panel_zewnatrz = self._stworz_karte(self.main_container, "Zewnątrz (Wezwania)")
-        self.panel_mapa = self._stworz_karte(self.main_container, "Mapa Szybu")
-        
-        self.canvas_wysokosc = 550
-        self.canvas = tk.Canvas(self.panel_mapa, width=150, height=self.canvas_wysokosc, 
-                                bg="#ffffff", bd=0, highlightthickness=0)
-        self.canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
-        
-        self.panel_kabina = self._stworz_karte(self.main_container, "Wnętrze Kabiny", bg_kolor="#e4e6eb")
-        self.panel_info = self._stworz_karte(self.main_container, "Sterowanie i Stan")
-        
-        self._buduj_panel_zewnatrz()
-        self._buduj_panel_kabiny()
-        self._buduj_panel_info()
+        self.after_id = None
+        self.predkosc = 1.0  # mnożnik prędkości (1x, 2x, 5x, 10x)
+        self.interwal_ms = self.BAZOWY_INTERWAL_MS  # aktualne opóźnienie
+
+        # --- BUDOWA INTERFEJSU ---
+        self._buduj_top_bar()
+        self._buduj_pasek_sterowania()
+        self._buduj_main_layout()
         self.odswiez_widok()
 
-    def _waliduj_interwal(self, wartosc):
-        """Walidacja dla pola Entry: tylko cyfry i zakres 100-2000."""
-        if wartosc == "":
-            return True
-        if not wartosc.isdigit():
-            return False
-        val = int(wartosc)
-        return 100 <= val <= 2000
+    def _dodaj_grupy_agentow(self):
+        """Dodaje przykładowe grupy agentów (jak w konsoli)."""
+        plan_ids = self.repozytorium.plan_ids()
+        if not plan_ids:
+            return
+        grupy = [
+            ("g1_p4", plan_ids[0], 4, 5),
+            ("g2_p7", plan_ids[1 % len(plan_ids)], 7, 4),
+            ("g3_p10", plan_ids[2 % len(plan_ids)], 10, 3),
+        ]
+        for nazwa, plan_id, pietro, liczba in grupy:
+            self.menedzer.dodaj_grupe(KonfiguracjaGrupyAgentow(nazwa, plan_id, pietro, liczba))
 
-    def _ustaw_interwal_z_klawiatury(self, event=None):
-        """Ustawia interwał po ręcznym wpisaniu (Enter lub utrata fokusu)."""
-        try:
-            nowa_wartosc = self.interwal_var.get()
-            if 100 <= nowa_wartosc <= 2000:
-                self._zmiana_interwalu()
-            else:
-                # Przywróć poprzednią poprawną wartość
-                self.interwal_var.set(self.interwal_ticku_ms)
-        except tk.TclError:
-            self.interwal_var.set(self.interwal_ticku_ms)
+    # ----------------------------------------------------------------------
+    # BUDOWA ELEMENTÓW GUI
+    # ----------------------------------------------------------------------
+    def _buduj_top_bar(self):
+        top_frame = tk.Frame(self.root, bg="#202124")
+        top_frame.pack(side=tk.TOP, fill=tk.X)
 
-    def _zmiana_interwalu_suwak(self, *args):
-        """Callback dla suwaka."""
-        self._zmiana_interwalu()
+        # Zegar
+        self.panel_zegara = tk.Frame(top_frame, bg="#202124", pady=5)
+        self.panel_zegara.pack(side=tk.LEFT, padx=20)
+        self.lbl_zegar = tk.Label(self.panel_zegara, text="08:00:00", font=("Consolas", 28, "bold"),
+                                  bg="#202124", fg="#ffffff")
+        self.lbl_zegar.pack()
+        self.lbl_dzien = tk.Label(self.panel_zegara, text="PONIEDZIAŁEK", font=("Segoe UI", 11, "bold"),
+                                  bg="#202124", fg="#81c995")
+        self.lbl_dzien.pack()
 
-    def _stworz_karte(self, parent, tytul, bg_kolor="white"):
-        kontener = tk.Frame(parent, bg=self.kolor_tla)
-        kontener.pack(side=tk.LEFT, fill=tk.Y, padx=8, pady=8)
-        tk.Label(kontener, text=tytul, bg=self.kolor_tla, fg="#444444", font=("Segoe UI", 11, "bold")).pack(pady=(0, 6), anchor="w")
-        karta = tk.Frame(kontener, bg=bg_kolor, bd=0, highlightthickness=1, highlightbackground="#dcdfe6")
-        karta.pack(fill=tk.BOTH, expand=True, ipadx=10, ipady=10)
-        return karta
+        # Przycisk Start/Stop
+        self.btn_play = tk.Button(top_frame, text="Start", command=self.przelacz,
+                                  bg="#81c995", fg="white", relief=tk.FLAT, width=10,
+                                  font=("Segoe UI", 10, "bold"))
+        self.btn_play.pack(side=tk.RIGHT, padx=20, pady=5)
 
-    def _czysc_panel(self, panel):
-        """Usuwa wszystkie widgety z danego panelu."""
-        for widget in panel.winfo_children():
-            widget.destroy()
+        # Przycisk Reset
+        btn_reset = tk.Button(top_frame, text="Reset", command=self.reset,
+                              bg="#f28b82", fg="white", relief=tk.FLAT, width=10,
+                              font=("Segoe UI", 10, "bold"))
+        btn_reset.pack(side=tk.RIGHT, padx=10, pady=5)
 
-    def _buduj_panel_zewnatrz(self):
-        self._czysc_panel(self.panel_zewnatrz)
-        for i in reversed(range(self.parametry.liczba_pieter)):
-            f = tk.Frame(self.panel_zewnatrz, bg="white")
-            f.pack(pady=4)
-            tk.Label(f, text=f"P{i:02d}", width=3, bg="white", font=("Segoe UI", 10, "bold")).pack(side=tk.LEFT)
-            
-            # Przycisk w górę
-            btn_up = tk.Button(f, text="▲", command=lambda p=i: self.wezwij(p, Kierunek.GORA), 
-                              relief=tk.FLAT, bg="#e8f0fe", font=("Arial", 10))
-            btn_up.pack(side=tk.LEFT, padx=2)
-            if i == self.parametry.liczba_pieter - 1:
-                btn_up.config(state=tk.DISABLED, bg="#f8f9fa", fg="#cccccc")
-            
-            # Przycisk w dół
-            btn_down = tk.Button(f, text="▼", command=lambda p=i: self.wezwij(p, Kierunek.DOL), 
-                                relief=tk.FLAT, bg="#fce8e6", font=("Arial", 10))
-            btn_down.pack(side=tk.LEFT, padx=2)
-            if i == 0:
-                btn_down.config(state=tk.DISABLED, bg="#f8f9fa", fg="#cccccc")
+    def _buduj_pasek_sterowania(self):
+        """Dolny pasek z suwakiem prędkości i przyciskiem +15 min."""
+        control_frame = tk.Frame(self.root, bg="#e8eaed", pady=5, padx=10)
+        control_frame.pack(side=tk.TOP, fill=tk.X)
 
-    def _buduj_panel_kabina_lcd(self):
-        f_ekran = tk.Frame(self.panel_kabina, bg="#202124", padx=10, pady=5)
-        f_ekran.pack(pady=10, fill=tk.X)
-        self.ekran_pietro = tk.Label(f_ekran, text="0", font=("Consolas", 28), bg="#202124", fg="#ff5252")
-        self.ekran_pietro.pack(side=tk.LEFT)
-        self.ekran_kierunek = tk.Label(f_ekran, text="-", font=("Consolas", 28), bg="#202124", fg="#ff5252")
-        self.ekran_kierunek.pack(side=tk.RIGHT)
+        # Suwak prędkości (od 0.5x do 20x, logarytmicznie)
+        tk.Label(control_frame, text="Prędkość:", bg="#e8eaed", font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=5)
+        self.speed_var = tk.DoubleVar(value=1.0)
+        self.speed_scale = ttk.Scale(control_frame, from_=0.5, to=20.0, orient=tk.HORIZONTAL,
+                                     variable=self.speed_var, command=self._zmiana_predkosci)
+        self.speed_scale.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=5)
+        self.lbl_predkosc = tk.Label(control_frame, text="1.0x", bg="#e8eaed", font=("Segoe UI", 9, "bold"), width=6)
+        self.lbl_predkosc.pack(side=tk.LEFT, padx=5)
 
-    def _buduj_panel_kabiny(self):
-        self._czysc_panel(self.panel_kabina)
-        self._buduj_panel_kabina_lcd()
-        f_guziki = tk.Frame(self.panel_kabina, bg="#e4e6eb")
-        f_guziki.pack(pady=10)
-        # Oryginalny układ dwukolumnowy
-        for i in reversed(range(self.parametry.liczba_pieter)):
-            btn = OkraglyPrzycisk(f_guziki, str(i), lambda p=i: self.wybierz(p))
-            row = (self.parametry.liczba_pieter - 1 - i) // 2
-            col = (self.parametry.liczba_pieter - 1 - i) % 2
-            btn.grid(row=row, column=col, padx=8, pady=8)
+        # Przycisk "+15 min"
+        btn_15min = tk.Button(control_frame, text="+15 min", command=lambda: self.skok_czasowy(15),
+                              bg="#d2e3fc", relief=tk.FLAT, font=("Segoe UI", 9, "bold"))
+        btn_15min.pack(side=tk.LEFT, padx=10)
 
-    def _buduj_panel_info(self):
-        f_ctrl = tk.Frame(self.panel_info, bg="white")
-        f_ctrl.pack(pady=10)
-        
-        # Przyciski sterowania
-        tk.Button(f_ctrl, text="Krok +1", command=self.krok, bg="#e8eaed", relief=tk.FLAT, 
-                 font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
-        tk.Button(f_ctrl, text="Piętro +1", command=self.skok_pietro, bg="#d2e3fc", relief=tk.FLAT, 
-                 font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
-        
-        self.btn_play = tk.Button(f_ctrl, text="Start", command=self.przelacz, bg="#81c995", fg="white", 
-                                 relief=tk.FLAT, width=8, font=("Segoe UI", 9, "bold"))
-        self.btn_play.pack(side=tk.LEFT, padx=2)
-        tk.Button(f_ctrl, text="Reset", command=self.reset, bg="#f28b82", fg="white", relief=tk.FLAT, 
-                 font=("Segoe UI", 9, "bold")).pack(side=tk.LEFT, padx=2)
-        
-        # Ramka na tekst stanu z paskiem przewijania
-        f_log = tk.Frame(self.panel_info, bg="#2b2d30")
-        f_log.pack(fill=tk.BOTH, expand=True, padx=5, pady=10)
-        
-        self.text_stanu = tk.Text(f_log, wrap=tk.WORD, font=("Consolas", 9), 
-                                 bg="#2b2d30", fg="#a9b7c6", bd=0, highlightthickness=0)
-        self.text_stanu.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        scrollbar = tk.Scrollbar(f_log, command=self.text_stanu.yview)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        self.text_stanu.config(yscrollcommand=scrollbar.set)
-        
-        # Ustawienie stanu tylko do odczytu
-        self.text_stanu.config(state=tk.DISABLED)
+        # Przycisk "+1 godzina" (opcjonalnie)
+        btn_1h = tk.Button(control_frame, text="+1 h", command=lambda: self.skok_czasowy(60),
+                           bg="#d2e3fc", relief=tk.FLAT, font=("Segoe UI", 9, "bold"))
+        btn_1h.pack(side=tk.LEFT, padx=5)
 
-    # --- Obsługa zmian ustawień ---
-    def _zmiana_interwalu(self):
-        nowy_interwal = self.interwal_var.get()
-        self.interwal_ticku_ms = nowy_interwal
+        # Etykieta informująca o aktualnym interwale
+        self.lbl_interwal = tk.Label(control_frame, text="400 ms", bg="#e8eaed", font=("Segoe UI", 9))
+        self.lbl_interwal.pack(side=tk.RIGHT, padx=10)
+
+    def _zmiana_predkosci(self, event=None):
+        """Aktualizuje interwał na podstawie prędkości."""
+        self.predkosc = self.speed_var.get()
+        if self.predkosc < 0.5:
+            self.predkosc = 0.5
+        # Interwał = bazowy / prędkość, ale ograniczamy do min 10 ms i max 2000 ms
+        self.interwal_ms = int(self.BAZOWY_INTERWAL_MS / self.predkosc)
+        if self.interwal_ms < 10:
+            self.interwal_ms = 10
+        if self.interwal_ms > 2000:
+            self.interwal_ms = 2000
+        self.lbl_predkosc.config(text=f"{self.predkosc:.1f}x")
+        self.lbl_interwal.config(text=f"{self.interwal_ms} ms")
         # Jeśli symulacja działa, restartujemy pętlę z nowym interwałem
-        if self.symulacja_dziala:
-            if self.after_id:
-                self.root.after_cancel(self.after_id)
+        if self.symulacja_dziala and self.after_id:
+            self.root.after_cancel(self.after_id)
             self.petla()
 
-    def _zmiana_pieter(self, *args):
-        nowa_liczba = self.pietra_var.get()
-        if nowa_liczba == self.parametry.liczba_pieter:
+    def _stworz_karte(self, parent, tytul):
+        kontener = tk.Frame(parent, bg=self.kolor_tla)
+        # Tytuł
+        tk.Label(kontener, text=tytul, bg=self.kolor_tla, fg="#444444",
+             font=("Segoe UI", 10, "bold")).grid(row=0, column=0, sticky="w", pady=(0, 4))
+        # Karta (ramka właściwa)
+        karta = tk.Frame(kontener, bg="white", bd=0, highlightthickness=1,
+                     highlightbackground="#dcdfe6")
+        karta.grid(row=1, column=0, sticky="nsew")
+        kontener.rowconfigure(1, weight=1)
+        kontener.columnconfigure(0, weight=1)
+        return kontener, karta   # zwracamy kontener i kartę
+
+    def _buduj_main_layout(self):
+        self.main_container = tk.Frame(self.root, bg=self.kolor_tla)
+        self.main_container.pack(fill=tk.BOTH, expand=True, padx=12, pady=12)
+
+        # 2 wiersze, 3 kolumny – równe wagi
+        for col in range(3):
+            self.main_container.columnconfigure(col, weight=1)
+        for row in range(2):
+            self.main_container.rowconfigure(row, weight=1)
+
+        # ---- Wiersz 0 ----
+        # Szyb
+        self.panel_mapa, self.frame_mapa = self._stworz_karte(self.main_container, "Szyb windy")
+        self.panel_mapa.grid(row=0, column=0, sticky="nsew", padx=4, pady=4)
+        self.canvas_wysokosc = 300
+        self.canvas = tk.Canvas(self.frame_mapa, width=180, height=self.canvas_wysokosc,
+                            bg="#ffffff", bd=0, highlightthickness=0)
+        self.canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+
+        # Kolejki
+        self.panel_kolejki, self.frame_kolejki = self._stworz_karte(self.main_container, "Kolejki na piętrach")
+        self.panel_kolejki.grid(row=0, column=1, sticky="nsew", padx=4, pady=4)
+        self.lista_kolejek = tk.Text(self.frame_kolejki, wrap=tk.NONE, font=("Consolas", 9),
+                                 bg="#f8f9fa", fg="#333333", bd=0, highlightthickness=0)
+        self.lista_kolejek.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        scroll_k = tk.Scrollbar(self.frame_kolejki, command=self.lista_kolejek.yview)
+        scroll_k.pack(side=tk.RIGHT, fill=tk.Y)
+        self.lista_kolejek.config(yscrollcommand=scroll_k.set)
+        self.lista_kolejek.config(state=tk.DISABLED)
+
+        # Pasażerowie
+        self.panel_pasazerowie, self.frame_pasazerowie = self._stworz_karte(self.main_container, "Winda (pasażerowie)")
+        self.panel_pasazerowie.grid(row=0, column=2, sticky="nsew", padx=4, pady=4)
+        self.lista_pasazerow = tk.Text(self.frame_pasazerowie, wrap=tk.WORD, font=("Consolas", 9),
+                                   bg="#f8f9fa", fg="#333333", bd=0, highlightthickness=0)
+        self.lista_pasazerow.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        scroll_p = tk.Scrollbar(self.frame_pasazerowie, command=self.lista_pasazerow.yview)
+        scroll_p.pack(side=tk.RIGHT, fill=tk.Y)
+        self.lista_pasazerow.config(yscrollcommand=scroll_p.set)
+        self.lista_pasazerow.config(state=tk.DISABLED)
+
+        # ---- Wiersz 1 ----
+        # Kolumna 0 pozostaje pusta (brak widgetu)
+
+        # Planowane akcje (pod kolejkami)
+        self.panel_akcje, self.frame_akcje = self._stworz_karte(self.main_container, "Planowane akcje agentów")
+        self.panel_akcje.grid(row=1, column=1, sticky="nsew", padx=4, pady=4)
+        self.lista_akcji = tk.Text(self.frame_akcje, wrap=tk.WORD, font=("Consolas", 9),
+                               bg="#f8f9fa", fg="#333333", bd=0, highlightthickness=0)
+        self.lista_akcji.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        scroll_a = tk.Scrollbar(self.frame_akcje, command=self.lista_akcji.yview)
+        scroll_a.pack(side=tk.RIGHT, fill=tk.Y)
+        self.lista_akcji.config(yscrollcommand=scroll_a.set)
+        self.lista_akcji.config(state=tk.DISABLED)
+
+        # Logi (pod pasażerami)
+        self.panel_log, self.frame_log = self._stworz_karte(self.main_container, "Logi i podsumowanie")
+        self.panel_log.grid(row=1, column=2, sticky="nsew", padx=4, pady=4)
+        self.text_log = tk.Text(self.frame_log, wrap=tk.WORD, font=("Consolas", 9),
+                            bg="#2b2d30", fg="#a9b7c6", bd=0, highlightthickness=0)
+        self.text_log.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        scroll_l = tk.Scrollbar(self.frame_log, command=self.text_log.yview)
+        scroll_l.pack(side=tk.RIGHT, fill=tk.Y)
+        self.text_log.config(yscrollcommand=scroll_l.set)
+        self.text_log.config(state=tk.DISABLED)
+
+    # ----------------------------------------------------------------------
+    # METODY STEROWANIA SYMULACJĄ
+    # ----------------------------------------------------------------------
+    def krok(self):
+        """Wykonuje jeden krok symulacji (tick)."""
+        if self.winda is None:
             return
-        
-        # Zatrzymaj symulację
+        self.winda.krok()
+        self.monitor_energii.krok(self.winda.snapshot())
+        czas_info = self.czas_sym.tick_na_czas(self.winda.aktualny_tick)
+        self.menedzer.krok(czas_info)
+        self.logger.pobierz_nowe_zdarzenia_z_menedzera(self.menedzer)
+
+        # Okresowe zapisywanie próbek (co minutę)
+        if czas_info["sekunda"] == 0:
+            self.logger.zapisz_probke(
+                czas_info=czas_info,
+                snapshot_windy=self.winda.snapshot(),
+                snapshot_menedzera=self.menedzer.snapshot(),
+                snapshot_energii=self.monitor_energii.snapshot(),
+            )
+
+        self.odswiez_widok()
+
+    def skok_czasowy(self, minuty):
+        """Przeskakuje symulację do przodu o zadaną liczbę minut."""
+        if self.symulacja_dziala:
+            # Zatrzymaj na czas skoku
+            self.symulacja_dziala = False
+            if self.after_id:
+                self.root.after_cancel(self.after_id)
+                self.after_id = None
+            self.btn_play.config(text="Start", bg="#81c995")
+
+        # Wykonuj kroki aż do osiągnięcia różnicy czasu
+        cel_tick = self.winda.aktualny_tick
+        # Obliczamy docelowy tick: dodajemy minuty * 60 * ? 
+        # Niestety nie mamy odwrotnego mapowania tick->czas. Użyjemy pętli.
+        # Będziemy wykonywać kroki i sprawdzać czas, aż różnica osiągnie minuty.
+        start_czas = self.czas_sym.tick_na_czas(self.winda.aktualny_tick)
+        start_sekunda = start_czas["godzina"]*3600 + start_czas["minuta"]*60 + start_czas["sekunda"]
+        cel_sekunda = start_sekunda + minuty * 60
+
+        # Wykonujemy kroki, aż przekroczymy cel
+        max_krokow = 100000  # zabezpieczenie
+        for _ in range(max_krokow):
+            self.krok()  # wykonuje jeden tick i aktualizuje widok
+            akt_czas = self.czas_sym.tick_na_czas(self.winda.aktualny_tick)
+            akt_sekunda = akt_czas["godzina"]*3600 + akt_czas["minuta"]*60 + akt_czas["sekunda"]
+            # Sprawdzamy, czy przekroczyliśmy cel (uwzględniając przejście przez północ)
+            if akt_sekunda >= cel_sekunda:
+                break
+            # Ograniczenie, żeby nie zablokować GUI
+            self.root.update_idletasks()
+
+        # Aktualizacja widoku po skoku
+        self.odswiez_widok()
+        # Jeśli symulacja była wcześniej włączona, wznawiamy
+        if self.symulacja_dziala_prev:
+            self.symulacja_dziala = True
+            self.btn_play.config(text="Stop", bg="#f28b82")
+            self.petla()
+
+    def reset(self):
+        """Resetuje całą symulację do stanu początkowego."""
         self.symulacja_dziala = False
         if self.after_id:
             self.root.after_cancel(self.after_id)
             self.after_id = None
         self.btn_play.config(text="Start", bg="#81c995")
-        
-        # Utwórz nowe parametry i windę
-        self.parametry = ParametryWindy(liczba_pieter=nowa_liczba)
+
+        # Nowe obiekty
+        self.parametry = ParametryWindy(
+            liczba_pieter=self.LICZBA_PIETER,
+            pietro_startowe=0,
+            ticki_przejazdu_na_pietro=self.TICKI_PRZEJAZDU,
+            ticki_postoju=self.TICKI_POSTOJU,
+            maks_pojemnosc=self.MAX_POJEMNOSC,
+            poczatkowe_obciazenie=0,
+        )
         self.winda = SilnikWindy(parametry=self.parametry)
-        
-        # Przebuduj interfejs zależny od liczby pięter
-        self._buduj_panel_zewnatrz()
-        self._buduj_panel_kabiny()
-        self.odswiez_widok()
+        self.czas_sym = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=8 * 3600 + 30 * 60)
+        self.menedzer = MenedzerAgentow(self.repozytorium, self.winda, self.ustawienia)
+        self._dodaj_grupy_agentow()
+        self.monitor_energii = MonitorEnergiiWindy()
+        self.logger = LoggerSymulacji(Path(__file__).resolve().parent.parent / "outputs" / "GUI_logs")
 
-    # --- LOGIKA ---
-    def skok_pietro(self):
-        for _ in range(self.parametry.ticki_przejazdu_na_pietro):
-            self.winda.krok()
-        self.odswiez_widok()
-
-    def krok(self): 
-        self.winda.krok()
-        self.odswiez_widok()
-
-    def reset(self): 
-        self.symulacja_dziala = False
-        if self.after_id: 
-            self.root.after_cancel(self.after_id)
-        self.winda = SilnikWindy(self.parametry)
-        self.btn_play.config(text="Start", bg="#81c995")
         self.odswiez_widok()
 
     def przelacz(self):
+        """Start/Stop ciągłej symulacji."""
         self.symulacja_dziala = not self.symulacja_dziala
-        self.btn_play.config(text="Stop" if self.symulacja_dziala else "Start", 
+        self.btn_play.config(text="Stop" if self.symulacja_dziala else "Start",
                              bg="#f28b82" if self.symulacja_dziala else "#81c995")
-        if self.symulacja_dziala: 
+        if self.symulacja_dziala:
             self.petla()
 
     def petla(self):
+        """Pętla symulacji (wywoływana cyklicznie)."""
         if self.symulacja_dziala:
-            self.winda.krok()
-            self.odswiez_widok()
-            self.after_id = self.root.after(self.interwal_ticku_ms, self.petla)
+            self.krok()
+            self.after_id = self.root.after(self.interwal_ms, self.petla)
 
-    def wezwij(self, p, k): 
-        self.winda.dodaj_wezwanie_z_pietra_teraz(p, k, ZrodloZgloszenia.CZLOWIEK)
-        self.odswiez_widok()
-
-    def wybierz(self, p): 
-        self.winda.dodaj_wybor_z_kabiny_teraz(p, ZrodloZgloszenia.CZLOWIEK)
-        self.odswiez_widok()
-
-    def _rysuj_zaokraglony_prostokat(self, x1, y1, x2, y2, promien=8, **kwargs):
-        punkty = [x1+promien, y1, x1+promien, y1, x2-promien, y1, x2-promien, y1, x2, y1, x2, y1+promien, x2, y1+promien, x2, y2-promien, x2, y2-promien, x2, y2, x2-promien, y2, x2-promien, y2, x1+promien, y2, x1+promien, y2, x1, y2, x1, y2-promien, x1, y2-promien, x1, y1+promien, x1, y1+promien, x1, y1]
-        return self.canvas.create_polygon(punkty, smooth=True, **kwargs)
-
+    # ----------------------------------------------------------------------
+    # ODŚWIEŻANIE WIDOKU
+    # ----------------------------------------------------------------------
     def odswiez_widok(self):
-        stan = self.winda.snapshot()
+        """Aktualizuje wszystkie elementy GUI na podstawie bieżącego stanu."""
+        if self.winda is None:
+            return
+
+        # 1. Zegar
         tick = self.winda.aktualny_tick
-        
-        # --- Aktualizacja zegara ---
         dane_czasu = self.czas_sym.tick_na_czas(tick)
         godz_str = f"{dane_czasu['godzina']:02d}:{dane_czasu['minuta']:02d}:{dane_czasu['sekunda']:02d}"
         self.lbl_zegar.config(text=godz_str)
         self.lbl_dzien.config(text=NAZWY_DNI_TYGODNIA[dane_czasu['dzien_tygodnia']].upper())
-        
-        # --- Bezpieczne formatowanie wezwań ---
-        def bezpiecznie_formatuj_wezwania(zbior):
-            if not zbior:
-                return ""
-            
-            sformatowane_linie = []
-            for element in zbior:
-                nr_pietra = "?"
-                zrodlo = "CZŁOWIEK"
-                
-                if isinstance(element, int):
-                    nr_pietra = element
-                elif isinstance(element, dict):
-                    nr_pietra = element.get("pietro", "?")
-                    zrodlo = str(element.get("zrodlo", "CZŁOWIEK")).split('.')[-1]
-                elif hasattr(element, "pietro"):
-                    nr_pietra = getattr(element, "pietro")
-                    if hasattr(element, "zrodlo"):
-                        zrodlo = str(getattr(element, "zrodlo")).split('.')[-1]
-                elif isinstance(element, (list, tuple)):
-                    nr_pietra = element[0]
-                    if len(element) > 1:
-                        zrodlo = str(element[1]).split('.')[-1]
-                else:
-                    nr_pietra = str(element)
-                
-                sformatowane_linie.append(f"[{nr_pietra}, {zrodlo}]")
-            
-            sformatowane_linie.sort()
-            return "\n" + "\n".join(sformatowane_linie)
 
-        tekst_stanu = (
-            f"PIĘTRO: {stan['aktualne_pietro']}\n"
-            f"KIERUNEK: {stan['kierunek']}\n"
-            f"RUCH: {stan['czy_jedzie']}\n"
-            f"STOJI: {stan['czy_stoi_na_przystanku']}\n"
-            f"POZOSTAŁO TICKÓW: {stan['ticki_do_nastepnego_pietra']}\n\n"
-            f"WEZWANIA GÓRA: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wezwania_gora', []))}\n"
-            f"WEZWANIA DÓŁ: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wezwania_dol', []))}\n"
-            f"KABINA: {bezpiecznie_formatuj_wezwania(stan['oczekujace'].get('wybory_z_kabiny', []))}"
-        )
-        
-        # Aktualizacja przewijanego pola tekstowego
-        self.text_stanu.config(state=tk.NORMAL)
-        self.text_stanu.delete(1.0, tk.END)
-        self.text_stanu.insert(tk.END, tekst_stanu)
-        self.text_stanu.config(state=tk.DISABLED)
-        
-        akt_p = stan["aktualne_pietro"]
-        str_kier = str(stan["kierunek"]).split('.')[-1]
-        
-        # Płynna pozycja
+        # 2. Snapshoty
+        stan_windy = self.winda.snapshot()
+        stan_menedzera = self.menedzer.snapshot()
+        stan_energii = self.monitor_energii.snapshot()
+
+        # 3. Canvas (szyb)
+        self._rysuj_szyb(stan_windy, stan_menedzera)
+
+        # 4. Panel kolejek (tekst)
+        self._aktualizuj_panel_kolejek(stan_menedzera)
+
+        # 5. Panel pasażerów w windzie
+        self._aktualizuj_panel_pasazerow(stan_menedzera)
+
+        # 6. Panel planowanych akcji agentów
+        self._aktualizuj_panel_akcji(stan_menedzera)
+
+        # 7. Logi i podsumowanie
+        self._aktualizuj_logi(dane_czasu, stan_windy, stan_menedzera, stan_energii)
+
+    def _rysuj_szyb(self, stan_windy, stan_menedzera):
+        self.canvas.delete("all")
+        h_p = self.canvas_wysokosc / self.LICZBA_PIETER
+        akt_p = stan_windy["aktualne_pietro"]
+        str_kier = str(stan_windy["kierunek"]).split('.')[-1]
+
+        # Płynna pozycja windy
         offset = 0
-        if stan["czy_jedzie"] and self.parametry.ticki_przejazdu_na_pietro > 0:
-            ulamek = 1.0 - (stan["ticki_do_nastepnego_pietra"] / self.parametry.ticki_przejazdu_na_pietro)
+        if stan_windy["czy_jedzie"] and self.TICKI_PRZEJAZDU > 0:
+            ulamek = 1.0 - (stan_windy["ticki_do_nastepnego_pietra"] / self.TICKI_PRZEJAZDU)
             offset = ulamek if str_kier == "GORA" else -ulamek
 
-        self.ekran_pietro.config(text=str(akt_p))
-        self.ekran_kierunek.config(text="▲" if str_kier == "GORA" else "▼" if str_kier == "DOL" else "-", 
-                                   fg="#81c995" if str_kier == "GORA" else "#f28b82" if str_kier == "DOL" else "#7f8c8d")
-
-        self.canvas.delete("all")
-        h_p = self.canvas_wysokosc / self.parametry.liczba_pieter
-        for i in range(self.parametry.liczba_pieter):
+        # Rysowanie poziomych linii dla pięter
+        for i in range(self.LICZBA_PIETER):
             y = self.canvas_wysokosc - (i * h_p)
-            self.canvas.create_line(30, y, 150, y, fill="#e0e0e0", dash=(4, 4))
-            self.canvas.create_text(15, y - 10, text=f"P{i}", font=("Segoe UI", 9, "bold"), fill="#aaaaaa")
-        
-        w_h = h_p * 0.8
-        y_mid = self.canvas_wysokosc - ((akt_p + offset) * h_p) - (h_p/2)
-        self._rysuj_zaokraglony_prostokat(50, y_mid - w_h/2, 120, y_mid + w_h/2, promien=8, 
-                                          fill="#fbbc04" if stan["czy_stoi_na_przystanku"] else "#4285f4")
+            self.canvas.create_line(40, y, 170, y, fill="#e0e0e0", dash=(4, 4))
+            self.canvas.create_text(25, y - 10, text=f"P{i}", font=("Segoe UI", 9, "bold"), fill="#aaaaaa")
+
+            # Liczba oczekujących na tym piętrze
+            kolejki = stan_menedzera["kolejki"]
+            if str(i) in kolejki:
+                gora = len(kolejki[str(i)]["gora"])
+                dol = len(kolejki[str(i)]["dol"])
+                if gora > 0 or dol > 0:
+                    tekst = f"↑{gora} ↓{dol}"
+                    self.canvas.create_text(55, y - 10, text=tekst, font=("Consolas", 8),
+                                            fill="#d32f2f" if gora + dol > 0 else "#888888")
+
+        # Rysowanie windy
+        w_h = h_p * 0.75
+        y_mid = self.canvas_wysokosc - ((akt_p + offset) * h_p) - (h_p / 2)
+        x1, y1 = 60, y_mid - w_h / 2
+        x2, y2 = 150, y_mid + w_h / 2
+        self._rysuj_zaokraglony_prostokat(x1, y1, x2, y2, promien=8,
+                                          fill="#fbbc04" if stan_windy["czy_stoi_na_przystanku"] else "#4285f4")
+
+        # Wewnątrz windy: liczba pasażerów
+        obc = stan_windy["obciazenie"]
+        self.canvas.create_text((x1 + x2) / 2, (y1 + y2) / 2,
+                                text=str(obc), font=("Consolas", 14, "bold"), fill="white")
+
+    def _rysuj_zaokraglony_prostokat(self, x1, y1, x2, y2, promien=8, **kwargs):
+        punkty = [
+            x1 + promien, y1,
+            x2 - promien, y1,
+            x2, y1,
+            x2, y1 + promien,
+            x2, y2 - promien,
+            x2, y2,
+            x2 - promien, y2,
+            x1 + promien, y2,
+            x1, y2,
+            x1, y2 - promien,
+            x1, y1 + promien,
+            x1, y1
+        ]
+        return self.canvas.create_polygon(punkty, smooth=True, **kwargs)
+
+    def _aktualizuj_panel_kolejek(self, stan_menedzera):
+        self.lista_kolejek.config(state=tk.NORMAL)
+        self.lista_kolejek.delete(1.0, tk.END)
+        kolejki = stan_menedzera["kolejki"]
+        if not kolejki:
+            self.lista_kolejek.insert(tk.END, "Brak oczekujących.\n")
+        else:
+            for pietro in sorted(kolejki.keys(), reverse=True):
+                gora = kolejki[pietro]["gora"]
+                dol = kolejki[pietro]["dol"]
+                if not gora and not dol:
+                    continue
+                self.lista_kolejek.insert(tk.END, f"Piętro {pietro:2d}:  ↑ {len(gora):2d}  ↓ {len(dol):2d}\n")
+                for agent_id in gora[:5]:
+                    self.lista_kolejek.insert(tk.END, f"   {agent_id} (↑)\n")
+                if len(gora) > 5:
+                    self.lista_kolejek.insert(tk.END, f"   ... i {len(gora)-5} więcej\n")
+                for agent_id in dol[:5]:
+                    self.lista_kolejek.insert(tk.END, f"   {agent_id} (↓)\n")
+                if len(dol) > 5:
+                    self.lista_kolejek.insert(tk.END, f"   ... i {len(dol)-5} więcej\n")
+        self.lista_kolejek.config(state=tk.DISABLED)
+
+    def _aktualizuj_panel_pasazerow(self, stan_menedzera):
+        self.lista_pasazerow.config(state=tk.NORMAL)
+        self.lista_pasazerow.delete(1.0, tk.END)
+
+        agenci = stan_menedzera.get("agenci", {})
+        w_windzie = [aid for aid, a in agenci.items() if a.get("stan") == "JEDZIE_WINDA"]
+
+        if not w_windzie:
+            self.lista_pasazerow.insert(tk.END, "Winda pusta.\n")
+        else:
+            self.lista_pasazerow.insert(tk.END, f"Liczba pasażerów: {len(w_windzie)}\n")
+            for agent_id in w_windzie[:10]:
+                agent = agenci.get(agent_id, {})
+                cel = agent.get("cel_pietro", "?")
+                self.lista_pasazerow.insert(tk.END, f"  {agent_id} -> P{cel}\n")
+            if len(w_windzie) > 10:
+                self.lista_pasazerow.insert(tk.END, f"  ... i {len(w_windzie)-10} więcej\n")
+        self.lista_pasazerow.config(state=tk.DISABLED)
+
+    def _aktualizuj_panel_akcji(self, stan_menedzera):
+        """Wyświetla najbliższe akcje agentów."""
+        self.lista_akcji.config(state=tk.NORMAL)
+        self.lista_akcji.delete(1.0, tk.END)
+
+        agenci = stan_menedzera.get("agenci", {})
+        # Sortuj agentów według pozycji w kolejce lub ID
+        # Wybierz tylko tych, którzy mają zaplanowane akcje
+        akcje_list = []
+        for agent_id, agent in agenci.items():
+            nastepne = agent.get("nastepne_akcje", [])
+            if nastepne:
+                for akcja in nastepne[:2]:  # max 2 akcje na agenta
+                    czas = akcja.get("czas", "?")
+                    typ = akcja.get("etykieta", akcja.get("typ_akcji", "?"))
+                    cel = akcja.get("pietro_docelowe")
+                    start = akcja.get("pietro_startowe_symulowane")
+                    trasa = f" P{start}->P{cel}" if start is not None and cel is not None else ""
+                    losowe = " [L]" if akcja.get("czy_losowe") else ""
+                    akcje_list.append((czas, agent_id, f"{typ}{trasa}{losowe}"))
+
+        if not akcje_list:
+            self.lista_akcji.insert(tk.END, "Brak planowanych akcji.\n")
+        else:
+            # Sortuj po czasie
+            akcje_list.sort(key=lambda x: x[0])
+            for czas, agent_id, opis in akcje_list[:30]:  # ogranicz do 30 wpisów
+                self.lista_akcji.insert(tk.END, f"{czas} | {agent_id}: {opis}\n")
+
+        self.lista_akcji.config(state=tk.DISABLED)
+
+    def _aktualizuj_logi(self, czas_info, stan_windy, stan_menedzera, stan_energii):
+        self.text_log.config(state=tk.NORMAL)
+        self.text_log.delete(1.0, tk.END)
+
+        lines = []
+        lines.append(f"=== {czas_info['nazwa_dnia']} {czas_info['czas_tekst']} (tick {czas_info['tick']}) ===")
+        lines.append(f"Piętro: {stan_windy['aktualne_pietro']}  Kierunek: {stan_windy['kierunek']}")
+        lines.append(f"Obciążenie: {stan_windy['obciazenie']}/{stan_windy['maks_pojemnosc']}")
+        lines.append(f"Energia całk.: {stan_energii['energia_calkowita']:.2f} kWh")
+        stats = stan_menedzera["statystyki"]
+        lines.append(f"Wejścia: {stats['liczba_wejsc_do_windy']}  Wyjścia: {stats['liczba_wyjsc_z_windy']}")
+        lines.append(f"Ghost calle: {stats['liczba_ghost_calli']}  Schody: {stats['liczba_rezygnacji_schody']}")
+        zdarzenia = self.menedzer.ostatnie_zdarzenia(5)
+        if zdarzenia:
+            lines.append("\nOstatnie zdarzenia:")
+            for ev in zdarzenia:
+                typ = ev["typ"]
+                payload = ev["payload"]
+                if "agent" in payload:
+                    lines.append(f"  {typ}: {payload['agent']}")
+                else:
+                    lines.append(f"  {typ}")
+        self.text_log.insert(tk.END, "\n".join(lines))
+        self.text_log.config(state=tk.DISABLED)
+        self.text_log.see(tk.END)
+
 
 if __name__ == "__main__":
     root = tk.Tk()
