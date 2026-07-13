@@ -74,6 +74,8 @@ def main() -> None:
 
     czas = CzasSymulacji(dzien_tygodnia_startowy=0, sekunda_dnia_startowa=7 * 3600)
     errors = []
+    rekordy_ml = []
+    last_log_idx = 0
     losowe_wykonane = set()
 
     for _ in range(100000):
@@ -82,10 +84,21 @@ def main() -> None:
         menedzer.krok(info)
 
         logs = list(menedzer.log_zdarzen)
-        for event in logs:
+        for event in logs[last_log_idx:]:
             payload = event['payload']
             if event['typ'] == 'akcja_agenta' and payload.get('czy_losowe'):
                 losowe_wykonane.add(payload.get('akcja'))
+            if event['typ'] in {'nacisniecie_przycisku_wezwania', 'nacisniecie_przycisku_kabiny'}:
+                rekordy_ml.append({
+                    'tick': payload.get('tick'),
+                    'nazwa_dnia': info['nazwa_dnia'],
+                    'czas_tekst': info['czas_tekst'],
+                    'typ_nacisniecia': 'wezwanie_z_pietra' if event['typ']=='nacisniecie_przycisku_wezwania' else 'wybor_z_kabiny',
+                    'pietro': payload.get('pietro', payload.get('cel')),
+                    'kierunek': payload.get('kierunek', 'brak'),
+                    'obciazenie_windy': winda.obciazenie,
+                })
+        last_log_idx = len(logs)
 
         ids_w_windzie = list(menedzer.agenci_w_windzie)
         if len(ids_w_windzie) != len(set(ids_w_windzie)):
@@ -114,8 +127,6 @@ def main() -> None:
                         errors.append(f'tick {winda.aktualny_tick}: agent {aid} ma ujemne {pole}')
         if len(errors) > 100:
             break
-
-    rekordy_ml = menedzer.rekordy_ml_obserwowalne()
 
     dziury_ml = []
     for idx, rec in enumerate(rekordy_ml):

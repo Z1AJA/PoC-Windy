@@ -3,7 +3,9 @@ from _bootstrap_paths import *  # noqa: F401,F403
 import random
 import unittest
 
+from Agent_studenta import StanAgenta
 from Konfiguracja_windy import ParametryWindy
+from Kierunki_i_typy import Kierunek
 from Loader_planow import RepozytoriumPlanow
 from Menedzer_agentow import KonfiguracjaGrupyAgentow, MenedzerAgentow
 from Modele_planow import DzienPlanu, PlanZajec
@@ -77,6 +79,60 @@ class TestyLogikiAgentowDedupILosowe(unittest.TestCase):
         typy = [a.typ_akcji for a in akcje]
         self.assertIn("losowy_przejazd_miedzy_pietrami", typy)
         self.assertNotIn("powrot_na_pietro_domowe", typy)
+
+    def test_pelna_winda_powoduje_ponowne_wezwanie_po_odjezdzie(self):
+        menedzer = self._stworz_menedzera()
+        agenci = list(menedzer.agenci.values())
+
+        menedzer._dolacz_agenta_do_kolejki(agenci[0], "dol", tick=1, cel_pietro=0, typ_akcji="wyjazd_na_zajecia", czy_losowe=False)
+        menedzer._dolacz_agenta_do_kolejki(agenci[1], "dol", tick=2, cel_pietro=0, typ_akcji="wyjazd_na_zajecia", czy_losowe=False)
+
+        menedzer.silnik_windy.aktualne_pietro = 4
+        menedzer.silnik_windy.czy_stoi_na_przystanku = True
+        menedzer.silnik_windy.obciazenie = menedzer.silnik_windy.maks_pojemnosc
+        menedzer.silnik_windy.wezwania_dol.discard(4)  # symulacja: wezwanie zostało zużyte przy przyjeździe
+        menedzer.silnik_windy.aktywne_klucze_zgloszen.discard(("WEZWANIE", 4, Kierunek.DOL))
+
+        menedzer._wpusc_agentow_do_windy(4, tick=10)
+
+        self.assertNotIn(4, menedzer.silnik_windy.wezwania_dol)
+        self.assertIn((4, "dol"), menedzer._oczekujace_ponowne_wezwania)
+
+        menedzer.silnik_windy.czy_stoi_na_przystanku = False
+        menedzer.silnik_windy.czy_jedzie = True
+        menedzer.silnik_windy.aktualne_pietro = 5
+
+        menedzer._obsluz_ponowne_wezwania(tick=11)
+
+        self.assertIn(4, menedzer.silnik_windy.wezwania_dol)
+        self.assertNotIn((4, "dol"), menedzer._oczekujace_ponowne_wezwania)
+        self.assertEqual(menedzer.statystyki["liczba_nacisniec_wezwania"], 2)
+
+    def test_agent_czekajacy_w_gore_na_gornym_pietrze_moze_wejsc(self):
+        menedzer = self._stworz_menedzera()
+        agent = list(menedzer.agenci.values())[0]
+        agent.aktualne_pietro = 4
+
+        menedzer._dolacz_agenta_do_kolejki(
+            agent,
+            "gora",
+            tick=1,
+            cel_pietro=8,
+            typ_akcji="losowy_przejazd_miedzy_pietrami",
+            czy_losowe=True,
+        )
+
+        menedzer.silnik_windy.aktualne_pietro = 4
+        menedzer.silnik_windy.kierunek = Kierunek.GORA
+        menedzer.silnik_windy.czy_stoi_na_przystanku = True
+        menedzer.silnik_windy.obciazenie = 0
+
+        menedzer._wpusc_agentow_do_windy(4, tick=10)
+
+        self.assertIn(agent.id_agenta, menedzer.agenci_w_windzie)
+        self.assertEqual(agent.stan, StanAgenta.JEDZIE_WINDA)
+        self.assertIn(8, menedzer.silnik_windy.wybory_z_kabiny)
+
 
 if __name__ == "__main__":
     unittest.main()

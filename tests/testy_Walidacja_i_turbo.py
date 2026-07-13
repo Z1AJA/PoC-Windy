@@ -117,7 +117,6 @@ class TestyWalidacjiITurbo(unittest.TestCase):
         snap = menedzer.snapshot()
         self.assertGreaterEqual(snap["statystyki"]["liczba_nacisniec_wezwania"], 1)
         self.assertGreaterEqual(snap["statystyki"]["liczba_nacisniec_wyboru_kabiny"], 1)
-        self.assertGreaterEqual(len(menedzer.rekordy_ml_obserwowalne()), 2)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,6 @@ from Loader_planow import RepozytoriumPlanow
 from Silnik_windy import SilnikWindy
 from Kierunki_i_typy import Kierunek, ZrodloZgloszenia
 from Ustawienia_projektu import UstawieniaProjektu
-from Rejestrator_ml import RejestratorObserwacjiML
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,8 +41,7 @@ class MenedzerAgentow:
         self._ostatni_tick_kroku: int = 0
 
         self.log_zdarzen = deque(maxlen=5000)
-        self.rejestrator_ml = RejestratorObserwacjiML()
-        self._ostatni_czas_info: dict | None = None
+        self._oczekujace_ponowne_wezwania: dict[tuple[int, str], dict] = {}
         self.statystyki = {
             "liczba_wezwan_systemowych": 0,
             "liczba_nacisniec_wezwania": 0,
@@ -99,9 +97,6 @@ class MenedzerAgentow:
             for agent_id, agent in sorted(self.agenci.items())
         }
 
-    def rekordy_ml_obserwowalne(self) -> list[dict]:
-        return self.rejestrator_ml.rekordy_jako_dict()
-
     def _agreguj_metryki(self) -> dict:
         rekordy = []
         for agent in self.agenci.values():
@@ -126,7 +121,6 @@ class MenedzerAgentow:
         sekunda = czas_info["sekunda"]
         tick = czas_info["tick"]
         self._ostatni_tick_kroku = tick
-        self._ostatni_czas_info = dict(czas_info)
 
         if self._dzien_aktywny != nazwa_dnia:
             self.przygotuj_dzien(nazwa_dnia)
@@ -137,6 +131,7 @@ class MenedzerAgentow:
         self._obsluz_rezygnacje_na_schody(tick)
         self._obsluz_schody(tick)
         self._obsluz_przystanek_windy(tick)
+        self._obsluz_ponowne_wezwania(tick)
 
     def _obsluz_akcje_z_harmonogramu(self, minuta_dnia: int, tick: int) -> None:
         for agent in self.agenci.values():
@@ -209,26 +204,105 @@ class MenedzerAgentow:
     def _czy_wybor_kabiny_juz_aktywny(self, pietro_docelowe: int) -> bool:
         return pietro_docelowe in self.silnik_windy.wybory_z_kabiny
 
-    def _reaktywuj_wezwanie_jesli_pozostali_ludzie(self, pietro: int, kierunek: str, tick: int) -> None:
+    def _zaplanuj_ponowne_wezwanie(
+        self,
+        pietro: int,
+        kierunek: str,
+        tick: int,
+        powod: str,
+    ) -> None:
         if self.kolejki.liczba_oczekujacych(pietro, kierunek) <= 0:
-            return
-        if self._czy_wezwanie_juz_aktywne(pietro, kierunek):
+            self._oczekujace_ponowne_wezwania.pop((pietro, kierunek), None)
             return
 
-        if kierunek == "dol":
-            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.DOL, ZrodloZgloszenia.CZLOWIEK)
-        else:
-            self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
+        pierwszy_agent = None
+        pierwsi = self.kolejki.pobierz_pierwszych(pietro, kierunek, 1)
+        if pierwsi:
+            pierwszy_agent = pierwsi[0]
 
-        self._zarejestruj_wezwanie_ml(tick=tick, pietro=pietro, kierunek=kierunek)
-        self.statystyki["liczba_wezwan_systemowych"] += 1
-        self.statystyki["liczba_nacisniec_wezwania"] += 1
-        self._zaloguj("reaktywacja_wezwania", {
+        self._oczekujace_ponowne_wezwania[(pietro, kierunek)] = {
+            "tick_zaplanowania": tick,
+            "powod": powod,
+            "pierwszy_agent": pierwszy_agent,
+        }
+        self._zaloguj("zaplanowano_ponowne_wezwanie", {
             "tick": tick,
             "pietro": pietro,
             "kierunek": kierunek,
-            "zrodlo_w_systemie_windy": "CZLOWIEK",
+            "powod": powod,
+            "pierwszy_agent": pierwszy_agent,
         })
+
+    def _obsluz_ponowne_wezwania(self, tick: int) -> None:
+        do_usuniecia: list[tuple[int, str]] = []
+
+        for (pietro, kierunek), meta in list(self._oczekujace_ponowne_wezwania.items()):
+            if self.kolejki.liczba_oczekujacych(pietro, kierunek) <= 0:
+                do_usuniecia.append((pietro, kierunek))
+                continue
+
+            if self._czy_wezwanie_juz_aktywne(pietro, kierunek):
+                do_usuniecia.append((pietro, kierunek))
+                continue
+
+            # Wezwanie ma zostać wznowione dopiero po odjechaniu windy z tego piętra.
+            if self.silnik_windy.aktualne_pietro == pietro and (
+                self.silnik_windy.czy_stoi_na_przystanku or not self.silnik_windy.czy_jedzie
+            ):
+                continue
+
+            if kierunek == "dol":
+                self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.DOL, ZrodloZgloszenia.CZLOWIEK)
+            else:
+                self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
+
+            self.statystyki["liczba_wezwan_systemowych"] += 1
+            self.statystyki["liczba_nacisniec_wezwania"] += 1
+            self._zaloguj("nacisniecie_przycisku_wezwania", {
+                "tick": tick,
+                "pietro": pietro,
+                "kierunek": kierunek,
+                "powod": meta["powod"],
+                "pierwszy_agent": meta["pierwszy_agent"],
+                "ponowienie": True,
+                "zrodlo_w_systemie_windy": "CZLOWIEK",
+            })
+            do_usuniecia.append((pietro, kierunek))
+
+        for key in do_usuniecia:
+            self._oczekujace_ponowne_wezwania.pop(key, None)
+
+    def _kierunek_obslugiwanej_kolejki_na_pietrze(self, pietro: int) -> str | None:
+        ma_gora = self.kolejki.liczba_oczekujacych(pietro, "gora") > 0
+        ma_dol = self.kolejki.liczba_oczekujacych(pietro, "dol") > 0
+
+        if not ma_gora and not ma_dol:
+            return None
+
+        if pietro == self.ustawienia.pietro_parteru:
+            return "gora" if ma_gora else "dol"
+
+        if self.silnik_windy.kierunek == Kierunek.GORA and ma_gora:
+            return "gora"
+        if self.silnik_windy.kierunek == Kierunek.DOL and ma_dol:
+            return "dol"
+
+        if self.silnik_windy.kierunek == Kierunek.BEZRUCH:
+            if ma_gora and not ma_dol:
+                return "gora"
+            if ma_dol and not ma_gora:
+                return "dol"
+
+        if ma_gora and pietro in self.silnik_windy.wezwania_gora:
+            return "gora"
+        if ma_dol and pietro in self.silnik_windy.wezwania_dol:
+            return "dol"
+
+        if ma_dol:
+            return "dol"
+        if ma_gora:
+            return "gora"
+        return None
 
     def _dolacz_agenta_do_kolejki(
         self,
@@ -257,7 +331,6 @@ class MenedzerAgentow:
             else:
                 self.silnik_windy.dodaj_wezwanie_z_pietra_teraz(pietro, Kierunek.GORA, ZrodloZgloszenia.CZLOWIEK)
 
-            self._zarejestruj_wezwanie_ml(tick=tick, pietro=pietro, kierunek=kierunek)
             self.statystyki["liczba_wezwan_systemowych"] += 1
             self.statystyki["liczba_nacisniec_wezwania"] += 1
             rodzaj_zdarzenia = "nacisniecie_przycisku_wezwania"
@@ -315,13 +388,11 @@ class MenedzerAgentow:
     def _obsluz_przystanek_windy(self, tick: int) -> None:
         if not self.silnik_windy.czy_stoi_na_przystanku:
             return
-
         if self._tick_ostatniej_obslugi_przystanku == tick:
             return
 
         self._tick_ostatniej_obslugi_przystanku = tick
         pietro = self.silnik_windy.aktualne_pietro
-
         self._wypusc_agentow_z_windy(pietro, tick)
         self._wpusc_agentow_do_windy(pietro, tick)
 
@@ -345,14 +416,19 @@ class MenedzerAgentow:
             })
 
     def _wpusc_agentow_do_windy(self, pietro: int, tick: int) -> None:
-        wolne_miejsca = self.silnik_windy.maks_pojemnosc - self.silnik_windy.obciazenie
-        if wolne_miejsca <= 0:
+        kierunek = self._kierunek_obslugiwanej_kolejki_na_pietrze(pietro)
+        if kierunek is None:
             return
 
-        if pietro == self.ustawienia.pietro_parteru:
-            kierunek = "gora"
-        else:
-            kierunek = "dol"
+        wolne_miejsca = self.silnik_windy.maks_pojemnosc - self.silnik_windy.obciazenie
+        if wolne_miejsca <= 0:
+            self._zaplanuj_ponowne_wezwanie(
+                pietro=pietro,
+                kierunek=kierunek,
+                tick=tick,
+                powod="winda_pelna_przy_przyjezdzie",
+            )
+            return
 
         kandydaci = self.kolejki.pobierz_pierwszych(pietro, kierunek, wolne_miejsca)
 
@@ -370,7 +446,6 @@ class MenedzerAgentow:
             wybor_juz_aktywny = self._czy_wybor_kabiny_juz_aktywny(pietro_docelowe)
             if not wybor_juz_aktywny:
                 self.silnik_windy.dodaj_wybor_z_kabiny_teraz(pietro_docelowe, ZrodloZgloszenia.CZLOWIEK)
-                self._zarejestruj_wybor_kabiny_ml(tick=tick, pietro_docelowe=pietro_docelowe, kierunek=kierunek)
                 self.statystyki["liczba_nacisniec_wyboru_kabiny"] += 1
                 typ_zdarzenia = "nacisniecie_przycisku_kabiny"
             else:
@@ -395,42 +470,21 @@ class MenedzerAgentow:
             })
 
         self._przelicz_pozycje_w_kolejce(pietro, kierunek)
-        self._reaktywuj_wezwanie_jesli_pozostali_ludzie(pietro, kierunek, tick)
+        if self.kolejki.liczba_oczekujacych(pietro, kierunek) > 0:
+            self._zaplanuj_ponowne_wezwanie(
+                pietro=pietro,
+                kierunek=kierunek,
+                tick=tick,
+                powod="pozostali_w_kolejce_po_odjezdzie_windy",
+            )
 
     def _przelicz_pozycje_w_kolejce(self, pietro: int, kierunek: str) -> None:
         pozycje = self.kolejki.aktualizuj_pozycje_pozostalych(pietro, kierunek)
         for agent_id, pozycja in pozycje.items():
             self.agenci[agent_id].zaktualizuj_pozycje_w_kolejce(pozycja)
 
-    def _zarejestruj_wezwanie_ml(self, *, tick: int, pietro: int, kierunek: str) -> None:
-        if self._ostatni_czas_info is None:
-            return
-        self.rejestrator_ml.zarejestruj_wezwanie_z_pietra(
-            tick=tick,
-            nazwa_dnia=self._ostatni_czas_info["nazwa_dnia"],
-            czas_tekst=self._ostatni_czas_info["czas_tekst"],
-            pietro=pietro,
-            kierunek=kierunek,
-            obciazenie_windy=self.silnik_windy.obciazenie,
-        )
-
-    def _zarejestruj_wybor_kabiny_ml(self, *, tick: int, pietro_docelowe: int, kierunek: str) -> None:
-        if self._ostatni_czas_info is None:
-            return
-        self.rejestrator_ml.zarejestruj_wybor_z_kabiny(
-            tick=tick,
-            nazwa_dnia=self._ostatni_czas_info["nazwa_dnia"],
-            czas_tekst=self._ostatni_czas_info["czas_tekst"],
-            pietro_docelowe=pietro_docelowe,
-            kierunek=kierunek,
-            obciazenie_windy=self.silnik_windy.obciazenie,
-        )
-
     def _zaloguj(self, typ: str, payload: dict) -> None:
-        self.log_zdarzen.append({
-            "typ": typ,
-            "payload": payload,
-        })
+        self.log_zdarzen.append({"typ": typ, "payload": payload})
 
     def ostatnie_zdarzenia(self, limit: int = 12) -> list[dict]:
         return list(self.log_zdarzen)[-limit:]
